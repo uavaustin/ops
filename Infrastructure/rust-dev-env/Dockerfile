@@ -24,6 +24,7 @@ ENV INTELLIJ_BUILD="${INTELLIJ_MAJOR}.${INTELLIJ_MINOR}"
 
 LABEL   uava.version="${VERSION}" \
         uava.subteam="integration" \
+        uava.rust-dev.rustc="${RUST_VERSION}" \
         username="${NEWUSER}"
 
 # Install dependencies:
