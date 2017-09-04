@@ -1,0 +1,20 @@
+{
+	"installed_packages":
+	[
+		"Anaconda",
+		"anaconda_rust",
+		"BeautifyRust",
+		"Dockerfile Syntax Highlighting",
+		"Git",
+		"GitGutter",
+		"MarkdownEditing",
+		"Package Control",
+		"Rust Enhanced",
+		"Rust Share",
+		"RustAutoComplete",
+		"SideBarEnhancements",
+		"SublimeLinter",
+		"TOML",
+		"YcmdCompletion"
+	]
+}
