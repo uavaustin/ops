@@ -1,0 +1,56 @@
+/*
+	AnacondaRUST default settings
+*/
+{
+	/*
+		Global linter switch, set this to false to disable AnacondaRUST
+		linting completely
+	*/
+	"anaconda_rust_linting": true,
+
+	/*
+		Global auto-completion switch, set this to false to disable AnacondaRUST
+		code auto-completion completely
+	*/
+	"anaconda_rust_autocompletion": true,
+
+	/*
+		AnacondaRUST binary paths
+
+		Set the location of rustc, racer and rustfmt in your system
+		Note: if this settings are left empty Anaconda will try to use
+		the ones that are in your PATH
+	*/
+	"rustc_binary_path": "",
+	"racer_binary_path": "",
+	"rustfmt_binary_path": "",
+
+    /*
+    	Set the path to your local version of rust source code
+    	this is neccessary for racer to give you proper standard
+    	library auto completion.
+		Note: if this setting is left empty Anaconda will tr to use
+		the environment variable RUST_SRC_PATH
+	*/
+	"rust_src_path": "/home/___USER___/.rustup/toolchains/___RUST_VER___-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/src",
+
+	/*
+		Set this to false if you don't want anaconda to format
+		your files when you save them
+	*/
+	"rust_format_on_save": false,
+
+	/*
+		This id the default time that anaconda will wait for rustfmt to finish
+		formatting files, after that time it will rturn a timeout failure
+	*/
+	"rust_rustfmt_timeout": 1,  // seconds
+
+	/*
+		Path to the rustfmt.toml configuration file
+
+		If empty, anaconda_rust uses the project directory if a project is
+		active or the directory where current file is being edited
+	*/
+	"rust_rustfmt_config_path": ""
+}
