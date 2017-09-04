@@ -8,7 +8,7 @@ FROM ubuntu:16.04
 LABEL maintainer="r.R..B.utAn.i+uavaustin@gmail.com"
 
 # Input Arguments: (Username + Friendly Username)
-ARG NEWUSER=padawan  	
+ARG NEWUSER=padawan
 ARG NEWUSERF=Padawan
 
 ARG SUBLIME_BUILD="3126"
@@ -38,7 +38,7 @@ RUN apt-get update -qq && \
 		emacs zsh \
 		apt-utils apt-transport-https && \
 	# Sublime:
-	wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | apt-key add - && \	
+	wget -qO - https://download.sublimetext.com/sublimehq-pub.gpg | apt-key add - && \
 	echo "deb https://download.sublimetext.com/ apt/stable/" > /etc/apt/sources.list.d/sublime-text.list && \
 	# Intellij:
 	apt-add-repository -y ppa:mmk2410/intellij-idea && \
@@ -101,7 +101,7 @@ RUN PATH="$HOME/.cargo/bin:$PATH" cargo install rustfmt && \
 RUN bash -c "mkdir -p ~/.config/sublime-text-3/{Installed\ Packages,Packages/User}" && \
 	wget https://packagecontrol.io/Package%20Control.sublime-package -O \
 		"/home/${NEWUSER}/.config/sublime-text-3/Installed Packages/Package Control.sublime-package"
-		
+
 COPY "sublime-settings" "/home/${NEWUSER}/.config/sublime-text-3/Packages/User"
 COPY subs .
 
@@ -110,7 +110,7 @@ RUN  sudo chmod +x subs && bash subs ${NEWUSER} ${RUST_VERSION}
 
 # Configure IntelliJ:
 RUN bash -c "mkdir -p /home/${NEWUSER}/.IdeaIC${INTELLIJ_MAJOR}/config/{options,plugins}" && \
-	wget 'https://plugins.jetbrains.com/plugin/download?updateId=38203' -O \ 
+	wget 'https://plugins.jetbrains.com/plugin/download?updateId=38203' -O \
 		/home/${NEWUSER}/.IdeaIC${INTELLIJ_MAJOR}/config/plugins/rust.zip -q && \
 	cd /home/${NEWUSER}/.IdeaIC${INTELLIJ_MAJOR}/config/plugins/ && \
 	unzip -q rust.zip && \
@@ -124,3 +124,5 @@ RUN rm -rf \
     /var/tmp/*
 
 WORKDIR /opt/Projects
+
+CMD ["cat"]
