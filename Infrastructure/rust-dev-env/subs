@@ -1,0 +1,14 @@
+#!/bin/bash
+# $1 :: USER
+# $2 :: Rust Version
+
+USER="${1}"
+RVER="${2}"
+
+echo "user is ${USER}"
+
+for file in "/home/${USER}/.config/sublime-text-3/Packages/User/"*; do
+	echo "Subbing: ${file}"
+	sed -i "s/___USER___/${USER}/g" "$file"
+	sed -i "s/___RUST_VER___/${RVER}/g" "$file" 
+done
