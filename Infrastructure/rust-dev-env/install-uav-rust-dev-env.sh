@@ -5,6 +5,8 @@
 # 
 # Essentially, pulls a docker image from Docker Hub, ties it to a container
 # with the appropriate mounts and devices, and adds some helpful aliases.
+#
+# Tested on x64 Linux and Windows 10 (Build 1703)
 ############################################################################### 
 
 # All or nothing:
@@ -19,6 +21,8 @@ PRJCT_DIR="${HOME}/UAVA/"
 
 aliases="true"
 output="true"
+
+WINDOWS="false"
 
 # Colours #
 BOLD='\033[0;1m' #(OR USE 31)
@@ -108,7 +112,7 @@ function processArguments
 
 function checkDependencies
 {
-    dependencies=("${DOCKER} cat grep expr whoami xargs")
+    dependencies=("${DOCKER} cat grep expr whoami xargs which")
     dependencies+=("$*")
 
     exitC=0
@@ -119,6 +123,8 @@ function checkDependencies
             exitC=1
         fi
     done
+
+    DOCKER=$(which ${DOCKER})
 
     # Check if we're in the docker group:
     if ! groups $(whoami) | grep &>/dev/null '\bdocker\b'; then
@@ -138,13 +144,41 @@ function checkOS
         if grep -q Microsoft /proc/version; then
             print "Bash on Windows will work just fine!" $CYAN
 
+            WINDOWS="true"
+
             DOCKER="docker.exe"
             print "Using ${DOCKER} for Docker!" $PURPLE
 
             print "Making some windows specific changes..." $PURPLE
 
+            # Get Windows Home Directory, windows style
+            WIN_HOME=$(/mnt/c/Windows/System32/cmd.exe /C echo %USERPROFILE%)
 
+            # Clean up string because Windows and DOS were built for type writters
+            # (yes, another carriage return issue)
+            WIN_HOME=$(echo ${WIN_HOME} | tr -d '\r')
+            WIN_PROJ="${WIN_HOME}\\Documents\\UAVA"
+            IFS='\' read -ra BASH_WIN_PROJ <<< "${WIN_PROJ}"
 
+            # Grab first letter of path, switch to lowercase using bash 4 
+            # feature (bash on windows is guarenteed bash 4.0+)
+            DRIVE_LETTER="${BASH_WIN_PROJ[0]:0:1}"
+            DRIVE_LETTER="${DRIVE_LETTER,,}"
+
+            # Pop one element
+            BASH_WIN_PROJ=("${BASH_WIN_PROJ[@]:1}")
+
+            # Put together the new path:
+            PRJCT_DIR="/mnt/${DRIVE_LETTER}"
+            for i in "${BASH_WIN_PROJ[@]}"; do
+                PRJCT_DIR="${PRJCT_DIR}/${i}"
+            done
+
+            # And print
+            print "Using ${PRJCT_DIR} as default Windows Path" $BOLD
+            echo -ne $BOLD; echo "(can be accessed at ${WIN_PROJ} in Windows)"
+
+            # Continue with .profile additions:
             PROF_TITLE="# Added automagically for Docker #"
 
             if grep -q "${PROF_TITLE}" "$HOME/.profile"; then
@@ -184,13 +218,15 @@ function projectDirectory
 
 function dockerRun
 {
-    eval "${DOCKER}" run -it -d \
+    "${DOCKER}" run -it -d \
         --name "${CNTNR_NAME}" \
         -v "${PRJCT_DIR}":/opt/Projects \
         -v /tmp/.X11-unix/X0:/tmp/.X11-unix/X0 \
         -e DISPLAY=${DISPLAY} \
         "${IMAGE_NAME}" \
         cat
+
+    return $?
 }
 
 function installAliases
@@ -209,7 +245,7 @@ function installAliases
 
     cat << EOF >> "${ALIAS_FILE}"
 # ${CNTNR_NAME} Aliases #
-alias uava='cd ${PRJCT_DIR}\'
+alias uava='cd "${PRJCT_DIR}"'
 alias uavai='docker exec -it ${CNTNR_NAME} bash -c "intellij-idea-community"'
 alias uavas='docker exec -it ${CNTNR_NAME} bash -c "subl"'
 alias uavaD='docker exec -it ${CNTNR_NAME} /bin/zsh'
@@ -252,6 +288,6 @@ trap emergencyExit SIGINT SIGTERM
 
 ##########################
 # AUTHOR:  Rahul Butani  #
-# DATE:    Sept 04, 2017 #
+# DATE:    Sept 05, 2017 #
 # VERSION: 0.0.0         #
 ##########################

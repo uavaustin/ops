@@ -1,4 +1,4 @@
-# The Rust Development Environment for UAV Austin (2017-2018) (in a Docker Container!)
+# The Rust Development Environment for UAV Austin (2017-2018) (in a [Docker Container!](https://hub.docker.com/r/uavaustin/rust-dev-env/))
 
 #### Currently at Version 0.0.0
 Contains:
