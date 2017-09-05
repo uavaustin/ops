@@ -17,7 +17,7 @@ DOCKER="docker"
 # Configuration Variables #
 IMAGE_NAME="uavaustin/rust-dev-env:latest"
 CNTNR_NAME="uava-dev"
-PRJCT_DIR="${HOME}/UAVA/"
+PRJCT_DIR="${HOME}/Documents/UAVA/"
 
 aliases="true"
 output="true"
@@ -126,11 +126,6 @@ function checkDependencies
 
     DOCKER=$(which ${DOCKER})
 
-    # Check if we're in the docker group:
-    if ! groups $(whoami) | grep &>/dev/null '\bdocker\b'; then
-        print "Warning: You are not in the docker group!"
-    fi
-
     return ${exitC}
 }
 
@@ -196,6 +191,11 @@ alias docker="docker.exe"
 EOF
         else
             print "Another Linux user!" $CYAN
+
+            # Check if we're in the docker group:
+            if ! groups $(whoami) | grep &>/dev/null '\bdocker\b'; then
+                print "Warning: You are not in the docker group!"
+            fi
         fi
     elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
         print "Sorry, Cygwin/MinGW are not supported at this time." $RED
@@ -221,7 +221,7 @@ function dockerRun
     "${DOCKER}" run -it -d \
         --name "${CNTNR_NAME}" \
         -v "${PRJCT_DIR}":/opt/Projects \
-        -v /tmp/.X11-unix/X0:/tmp/.X11-unix/X0 \
+        -v /tmp/.X11-unix:/tmp/.X11-unix \
         -e DISPLAY=${DISPLAY} \
         "${IMAGE_NAME}" \
         cat
@@ -282,7 +282,7 @@ trap emergencyExit SIGINT SIGTERM
     projectDirectory && \
     dockerRun && \
     installAliases && \
-    print "You're all set up! Adieu, mon ami!" $CYAN
+    print "You are all set up! Adieu, mon ami!" $CYAN
 } || badEnv 1
 
 
