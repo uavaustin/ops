@@ -1,0 +1,28 @@
+// {
+// 	"command": "rust_goto", "keys": ["ctrl+r", "ctrl+g"], "context": [
+//   		{"key": "selector", "operator": "equal", "operand": "source.rust"}
+//   	],
+// 	"command": "rust_doc", "keys": ["ctrl+r", "ctrl+d"], "context": [
+//   		{"key": "selector", "operator": "eual", "operan": "source.rust"}
+//   	]
+[
+  {
+    "keys": ["ctrl+alt+r"],
+    "command": "beautify_rust"
+  },
+  {
+  	"keys": ["ctrl+k", "ctrl+g"], 
+  	"context": [
+   		{"key": "selector", "operator": "equal", "operand": "source.rust"}
+   	],
+   	"command": "rust_goto"
+  },
+  {
+  	"keys": ["ctrl+k", "ctrl+d"], 
+  	"context": [
+  		{"key": "selector", "operator": "eual", "operan": "source.rust"}
+  	],
+  	"command": "rust_doc"
+  }
+
+]

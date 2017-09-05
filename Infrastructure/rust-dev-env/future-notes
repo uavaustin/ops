@@ -1,0 +1,20 @@
+so... ttys don't work on Bash on Windows calling docker.exe
+So! The plan is now to install gnome-terminal and x11 forward that.
+windows will need custom aliases that don't have -t options
+everyone will need a new uavad/uavaD option (d opens tty - not for windows/D opens gnome-terminal via X11)
+xeyes should be part of the image bc it's handy
+gnome-terminal should be configured properly within the image (not chsh, but just add a profile)
+there should be aliases within the container (uava, uavai, uavas are probably enough)
+
+windows setup will be more complicated:
+    we need to modify the xming settings to allow connections from the docker (running in -ac mode is scary)
+    we need to intelligently set the DISPLAY variable for the container based on what the docker virtual interface is set to at install time (lil bit tricky, but they seem to start with 10. at least)
+    we should probably look into making a start menu entry to open gnome-terminal (or xming + docker start + gnome-terminal) because that makes it v v easy for windows users (none of this hacky open bash, open another terminal or powershell business)
+         ^ this is definitely a future/feature kind of thing though
+linux is and remains flawless
+
+and as for macOS, who the hell knows
+I suspect it's something similar to the xming -ac thing
+at least I hope
+
+And all of this will be release 0.1.0

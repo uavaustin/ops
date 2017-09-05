@@ -1,0 +1,14 @@
+# Git Repo Files #
+.gitignore
+README.md
+
+# OS Specific Garbage #
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build/Install Scripts #
+*.sh
