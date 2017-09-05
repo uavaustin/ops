@@ -10,12 +10,12 @@
 # All or nothing:
 set -e
 
-home=~
+DOCKER="docker"
 
 # Configuration Variables #
 IMAGE_NAME="uavaustin/rust-dev-env:latest"
 CNTNR_NAME="uava-dev"
-PRJCT_DIR="${home}/UAVA/"
+PRJCT_DIR="${HOME}/UAVA/"
 
 aliases="true"
 output="true"
@@ -108,7 +108,7 @@ function processArguments
 
 function checkDependencies
 {
-    dependencies=("docker cat grep expr whoami xargs")
+    dependencies=("${DOCKER} cat grep expr whoami xargs")
     dependencies+=("$*")
 
     exitC=0
@@ -122,8 +122,7 @@ function checkDependencies
 
     # Check if we're in the docker group:
     if ! groups $(whoami) | grep &>/dev/null '\bdocker\b'; then
-        print "Error: You are not in the docker group!"
-        exitC=1
+        print "Warning: You are not in the docker group!"
     fi
 
     return ${exitC}
@@ -137,7 +136,30 @@ function checkOS
         checkDependencies "brew"
     elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
         if grep -q Microsoft /proc/version; then
-          print "Bash on Windows will work just fine!" $CYAN
+            print "Bash on Windows will work just fine!" $CYAN
+
+            DOCKER="docker.exe"
+            print "Using ${DOCKER} for Docker!" $PURPLE
+
+            print "Making some windows specific changes..." $PURPLE
+
+
+
+            PROF_TITLE="# Added automagically for Docker #"
+
+            if grep -q "${PROF_TITLE}" "$HOME/.profile"; then
+                print "Changes already present." $PURPLE
+                return $?
+            fi
+
+            cat << EOF >> "$HOME/.profile"
+
+${PROF_TITLE}
+PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
+PATH="\$PATH:/mnt/c/Program\ Files/Docker/Docker/resources/bin"
+export DISPLAY=:0
+alias docker="docker.exe"
+EOF
         else
             print "Another Linux user!" $CYAN
         fi
@@ -162,7 +184,7 @@ function projectDirectory
 
 function dockerRun
 {
-    docker run -it -d \
+    eval "${DOCKER}" run -it -d \
         --name "${CNTNR_NAME}" \
         -v "${PRJCT_DIR}":/opt/Projects \
         -v /tmp/.X11-unix/X0:/tmp/.X11-unix/X0 \
@@ -176,7 +198,7 @@ function installAliases
     if [[ "$aliases" != "true" ]]; then return; fi
 
     # ALIAS_FILE_LOC=${ALIAS_FILE-"~/.bash_aliases"}
-    print "Using ${ALIAS_FILE:="${home}/.bash_aliases"} as alias file."
+    print "Using ${ALIAS_FILE:="${HOME}/.bash_aliases"} as alias file."
 
     echo ${CNTNR_NAME}
 
