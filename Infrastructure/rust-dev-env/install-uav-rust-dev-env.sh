@@ -227,20 +227,6 @@ trap emergencyExit SIGINT SIGTERM
     print "You're all set up! Adieu, mon ami!" $CYAN
 } || badEnv 1
 
-# Check that docker is installed
-# Process Args (all optional)
-#   -i <custom image name>
-#   -p <custom project dir>
-#   -t <custom container tag>
-#   -a <custom alias file>
-#   -A (don't add aliases)
-#   -q (quiet)
-# Make the project directory if it doesn't exist
-# Run docker run with specified/default image
-# Install Aliases
-# Bid them Adieu!
-
-
 
 ##########################
 # AUTHOR:  Rahul Butani  #
