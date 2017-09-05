@@ -10,9 +10,14 @@
 # All or nothing:
 set -e
 
+home=~
+
 # Configuration Variables #
 IMAGE_NAME="uavaustin/rust-dev-env:latest"
+CNTNR_NAME="uava-dev"
+PRJCT_DIR="${home}/UAVA/"
 
+aliases="true"
 output="true"
 
 # Colours #
@@ -76,33 +81,35 @@ function badEnv
 
 function processArguments
 {
-    return 0
-}
-
-function checkOS
-{
-    #Creds to SO: http://bit.ly/1pHeRRa
-    if [ "$(uname)" == "Darwin" ]; then
-        print "Hey there macOS user!" $CYAN
-    elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-        if grep -q Microsoft /proc/version; then
-          echo "Ubuntu on Windows"
-        else
-            echo "native Linux"
-        fi
-    elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
-        print "Sorry, Cygwin/MinGW are not supported at this time." $RED
-        print "If you're on Windows 10, you can install Bash On Windows to"
-        print "continue."
-        badEnv 1
-    fi
-
-
+    while getopts ":i:p:t:a:ADqh" opt; do
+        case "$opt" in
+        h)  helpText 0
+            ;;
+        i)  IMAGE_NAME=("$OPTARG")
+            ;;
+        p)  PRJCT_DIR=$(echo "$OPTARG" | xargs)
+            print "Using \"${PRJCT_DIR}\" as project directory" $CYAN
+            ;;
+        t)  CNTNR_NAME=("$OPTARG")
+            ;;
+        a)  ALIAS_FILE=("$OPTARG")
+            ;;
+        A)  aliases="false"
+            ;;
+        D)  set -x
+            ;;
+        q)  output="false"
+            ;;
+        \?) helpText 1
+            ;;
+        esac
+    done
 }
 
 function checkDependencies
 {
-    dependencies=("docker cat grep expr whoami")
+    dependencies=("docker cat grep expr whoami xargs")
+    dependencies+=("$*")
 
     exitC=0
 
@@ -120,6 +127,74 @@ function checkDependencies
     fi
 
     return ${exitC}
+}
+
+function checkOS
+{
+    #Creds to SO: http://bit.ly/1pHeRRa
+    if [ "$(uname)" == "Darwin" ]; then
+        print "Hey there macOS user!" $CYAN
+        checkDependencies "brew"
+    elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+        if grep -q Microsoft /proc/version; then
+          print "Bash on Windows will work just fine!" $CYAN
+        else
+            print "Another Linux user!" $CYAN
+        fi
+    elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
+        print "Sorry, Cygwin/MinGW are not supported at this time." $RED
+        print "If you're on Windows 10, you can install Bash On Windows to"
+        print "continue."
+        badEnv 1
+    fi
+
+    print "Hang tight, and we'll get you set up." ${CYAN}
+
+    return $?
+}
+
+function projectDirectory
+{
+    mkdir -p "$(echo ${PRJCT_DIR} | xargs)"
+
+    return $?
+}
+
+function dockerRun
+{
+    docker run -it -d \
+        --name "${CNTNR_NAME}" \
+        -v "${PRJCT_DIR}":/opt/Projects \
+        -v /tmp/.X11-unix/X0:/tmp/.X11-unix/X0 \
+        -e DISPLAY=${DISPLAY} \
+        "${IMAGE_NAME}" \
+        cat
+}
+
+function installAliases
+{
+    if [[ "$aliases" != "true" ]]; then return; fi
+
+    # ALIAS_FILE_LOC=${ALIAS_FILE-"~/.bash_aliases"}
+    print "Using ${ALIAS_FILE:="${home}/.bash_aliases"} as alias file."
+
+    echo ${CNTNR_NAME}
+
+    if grep -q "# ${CNTNR_NAME} Aliases #" ${ALIAS_FILE}; then
+        print "Aliases already installed." $PURPLE
+        return $?
+    fi
+
+    cat << EOF >> "${ALIAS_FILE}"
+# ${CNTNR_NAME} Aliases #
+alias uava='cd ${PRJCT_DIR}\'
+alias uavai='docker exec -it ${CNTNR_NAME} bash -c "intellij-idea-community"'
+alias uavas='docker exec -it ${CNTNR_NAME} bash -c "subl"'
+alias uavaD='docker exec -it ${CNTNR_NAME} /bin/zsh'
+alias uavaS='docker start ${CNTNR_NAME}'
+alias uavaE='docker stop ${CNTNR_NAME} -t 1'
+
+EOF
 }
 
 function emergencyExit
@@ -143,8 +218,13 @@ function emergencyExit
 trap emergencyExit SIGINT SIGTERM
 
 {
+    checkOS && \
     checkDependencies && \
-    print "You're all set up! Adieu!" $CYAN
+    processArguments "$*" && \
+    projectDirectory && \
+    dockerRun && \
+    installAliases && \
+    print "You're all set up! Adieu, mon ami!" $CYAN
 } || badEnv 1
 
 # Check that docker is installed
@@ -164,6 +244,6 @@ trap emergencyExit SIGINT SIGTERM
 
 ##########################
 # AUTHOR:  Rahul Butani  #
-# DATE:    Sept 03, 2017 #
+# DATE:    Sept 04, 2017 #
 # VERSION: 0.0.0         #
 ##########################
