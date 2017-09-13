@@ -13,6 +13,7 @@
 set -e
 
 DOCKER="docker"
+DEPENDENCIES=("cat grep expr whoami xargs which")
 
 # Configuration Variables #
 IMAGE_NAME="uavaustin/rust-dev-env:latest"
@@ -21,8 +22,6 @@ PRJCT_DIR="${HOME}/Documents/UAVA/"
 
 aliases="true"
 output="true"
-
-WINDOWS="false"
 
 # Colours #
 BOLD='\033[0;1m' #(OR USE 31)
@@ -80,6 +79,7 @@ exit $1
 function badEnv
 {
     print "Go to http://uavaustin.org/camp/rust/0 for instructions on how to configure your environment." $BOLD
+    print "(and then try again)"
     exit $1
 }
 
@@ -112,7 +112,7 @@ function processArguments
 
 function checkDependencies
 {
-    dependencies=("${DOCKER} cat grep expr whoami xargs which")
+    dependencies=$DEPENDENCIES
     dependencies+=("$*")
 
     exitC=0
@@ -129,59 +129,101 @@ function checkDependencies
     return ${exitC}
 }
 
-function checkOS
+function checkForDockerGroup
 {
-    #Creds to SO: http://bit.ly/1pHeRRa
-    if [ "$(uname)" == "Darwin" ]; then
-        print "Hey there macOS user!" $CYAN
-        checkDependencies "brew"
-    elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-        if grep -q Microsoft /proc/version; then
-            print "Bash on Windows will work just fine!" $CYAN
+    runCount=$1
 
-            WINDOWS="true"
+    if [[ $runCount -gt 1 ]]; then
+        print "Sorry, something went wrong." $RED
+        print "We couldn't add you to the docker group." $RED
+        badEnv 1
+    elif [[ $runCount -eq 1 ]]; then
+        successString="You're now in the docker group! Great Success!"
+    else
+        successString="You're already in the docker group! Well done!"
+    fi
 
-            DOCKER="docker.exe"
-            print "Using ${DOCKER} for Docker!" $PURPLE
+    # First let's see if there even is a docker group:
+    if cut -d: -f1 /etc/group | grep -q "docker"; then
+        # If there is, see if we're in it
+        if groups $(whoami) | grep -q "docker"; then
+            # If we are, all is well.
+            print "${successString}" $CYAN
+        else
+            # If not, let's try to add the user to it:
+            print "We're going to try to add you to the docker group." $BOLD
+            print "You're probably going to be prompted for your password." $RED
+            print "This is necessary for us to add you to the docker group." $RED
+            print "(it's perfectly safe)" $RED
 
-            print "Making some windows specific changes..." $PURPLE
+            sudo usermod -aG docker $(whoami)
 
-            # Get Windows Home Directory, windows style
-            WIN_HOME=$(/mnt/c/Windows/System32/cmd.exe /C echo %USERPROFILE%)
+            # Now let's see if that actually worked:
+            return checkForDockerGroup ((runCount++))
+        fi
+    else
+        # If there is no docker group, throw an error:
+        print "We couldn't find a docker group." $RED
+        badEnv 1
+    fi
+}
 
-            # Clean up string because Windows and DOS were built for type writters
-            # (yes, another carriage return issue)
-            WIN_HOME=$(echo ${WIN_HOME} | tr -d '\r')
-            WIN_PROJ="${WIN_HOME}\\Documents\\UAVA"
-            IFS='\' read -ra BASH_WIN_PROJ <<< "${WIN_PROJ}"
+function windowsDocumentsPath
+{
+    # Get Windows Home Directory, windows style
+    WIN_HOME=$(/mnt/c/Windows/System32/cmd.exe /C echo %USERPROFILE%)
 
-            # Grab first letter of path, switch to lowercase using bash 4 
-            # feature (bash on windows is guarenteed bash 4.0+)
-            DRIVE_LETTER="${BASH_WIN_PROJ[0]:0:1}"
-            DRIVE_LETTER="${DRIVE_LETTER,,}"
+    # Clean up string because Windows and DOS were built for type writters
+    # (yes, another carriage return issue)
+    WIN_HOME=$(echo ${WIN_HOME} | tr -d '\r')
+    WIN_PROJ="${WIN_HOME}\\Documents\\UAVA"
+    IFS='\' read -ra BASH_WIN_PROJ <<< "${WIN_PROJ}"
 
-            # Pop one element
-            BASH_WIN_PROJ=("${BASH_WIN_PROJ[@]:1}")
+    # Grab first letter of path, switch to lowercase using a bash 4 feature
+    # (bash on windows is guarenteed bash 4.0+)
+    DRIVE_LETTER="${BASH_WIN_PROJ[0]:0:1}"
+    DRIVE_LETTER="${DRIVE_LETTER,,}"
 
-            # Put together the new path:
-            PRJCT_DIR="/mnt/${DRIVE_LETTER}"
-            for i in "${BASH_WIN_PROJ[@]}"; do
-                PRJCT_DIR="${PRJCT_DIR}/${i}"
-            done
+    # Pop one element
+    BASH_WIN_PROJ=("${BASH_WIN_PROJ[@]:1}")
 
-            # And print
-            print "Using ${PRJCT_DIR} as default Windows Path" $BOLD
-            echo -ne $BOLD; echo "(can be accessed at ${WIN_PROJ} in Windows)"
+    # Put together the new path:
+    PRJCT_DIR="/mnt/${DRIVE_LETTER}"
+    for i in "${BASH_WIN_PROJ[@]}"; do
+        PRJCT_DIR="${PRJCT_DIR}/${i}"
+    done
 
-            # Continue with .profile additions:
-            PROF_TITLE="# Added automagically for Docker #"
+    # And print
+    print "Using ${PRJCT_DIR} as default Windows Path" $BOLD
+    print "(can be accessed at ${WIN_PROJ} in Windows)" $BOLD
+    #TODO: Make sure ^^^^ works w/o the echo trash
+}
 
-            if grep -q "${PROF_TITLE}" "$HOME/.profile"; then
-                print "Changes already present." $PURPLE
-                return $?
-            fi
+function windowsDependencies
+{
 
-            cat << EOF >> "$HOME/.profile"
+}
+
+function windows
+{
+    print "Bash on Windows will work just fine!" $CYAN
+
+    DOCKER="docker.exe"
+    print "Using ${DOCKER} for Docker!" $PURPLE
+
+    print "Making some windows specific changes..." $PURPLE
+
+
+
+    # Continue with .profile additions:
+    PROF_TITLE="# Added automagically for Docker #"
+
+    if grep -q "${PROF_TITLE}" "$HOME/.profile"; then
+        print "Changes already present." $PURPLE
+        return $?
+    fi
+
+    cat << EOF >> "$HOME/.profile"
 
 ${PROF_TITLE}
 PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
@@ -189,6 +231,40 @@ PATH="\$PATH:/mnt/c/Program\ Files/Docker/Docker/resources/bin"
 export DISPLAY=:0
 alias docker="docker.exe"
 EOF
+
+}
+
+function macOSDependencies
+{
+    # Check for brew:
+}
+
+function macOS
+{
+    print "Hey there macOS user!" $CYAN
+    DEPENDENCIES+=("brew socat xquartz") # << TODO: check for the actual bin name for xquartz
+}
+
+function linuxDependencies
+{
+    # 
+}
+
+function linux
+{
+
+}
+
+# # # # # # # # # #
+
+function checkOS
+{
+    #Creds to SO: http://bit.ly/1pHeRRa
+    if [ "$(uname)" == "Darwin" ]; then
+        macOS
+    elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+        if grep -q Microsoft /proc/version; then
+            
         else
             print "Another Linux user!" $CYAN
 
@@ -218,13 +294,15 @@ function projectDirectory
 
 function dockerRun
 {
+    cd ~ && \
     "${DOCKER}" run -it -d \
         --name "${CNTNR_NAME}" \
         -v "${PRJCT_DIR}":/opt/Projects \
         -v /tmp/.X11-unix:/tmp/.X11-unix \
         -e DISPLAY=${DISPLAY} \
         "${IMAGE_NAME}" \
-        cat
+        cat && \
+    cd -
 
     return $?
 }
