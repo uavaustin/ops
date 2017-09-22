@@ -3,11 +3,17 @@
 ###############################################################################
 # Installs and configures the UAV Austin Rust Dev Environment locally. 
 # 
-# Essentially, pulls a docker image from Docker Hub, ties it to a container
+# Sets up Docker and all the tools needed to X11 forward applications out of a
+# Docker Container.
+# 
+# Finally, this script pulls an image from Docker Hub, ties it to a container
 # with the appropriate mounts and devices, and adds some helpful aliases.
 #
 # Tested on x64 Linux and Windows 10 (Build 1703)
-############################################################################### 
+# 
+# WARNING: May not work on non-standard installations (i.e. Custom Program 
+# Files Directory Location)
+############################################################################## 
 
 # All or nothing:
 set -e
@@ -31,6 +37,8 @@ GREEN='\033[0;32m'
 BROWN='\033[0;33m'
 RED='\033[1;31m'
 NC='\033[0m' # No Color
+
+CMD="/mnt/c/Windows/System32/cmd.exe"
 
 # Functions:
 
@@ -110,7 +118,7 @@ function processArguments
     done
 }
 
-function checkDependencies
+function checkDependenciesFinal
 {
     dependencies=$DEPENDENCIES
     dependencies+=("$*")
@@ -168,40 +176,178 @@ function checkForDockerGroup
     fi
 }
 
-function windowsDocumentsPath
+function windowsCMD
 {
-    # Get Windows Home Directory, windows style
-    WIN_HOME=$(/mnt/c/Windows/System32/cmd.exe /C echo %USERPROFILE%)
-
+    # Invoke the devil:
+    # Invoking cmd does some funky quote parsing, hence the extra quotes
+    output=$(/mnt/c/Windows/System32/cmd.exe /C "$*")
+    
     # Clean up string because Windows and DOS were built for type writters
     # (yes, another carriage return issue)
-    WIN_HOME=$(echo ${WIN_HOME} | tr -d '\r')
-    WIN_PROJ="${WIN_HOME}\\Documents\\UAVA"
-    IFS='\' read -ra BASH_WIN_PROJ <<< "${WIN_PROJ}"
+    echo $output | tr -d '\r'
+}
+
+function dos2wslPath
+{
+    # Converts a Windows style path to something that we can access from bash
+    # on windows.
+
+    # Split on backslashes:
+    IFS='\' read -ra DOS_PATH <<< "$*"
 
     # Grab first letter of path, switch to lowercase using a bash 4 feature
-    # (bash on windows is guarenteed bash 4.0+)
-    DRIVE_LETTER="${BASH_WIN_PROJ[0]:0:1}"
+    # (bash on windows is guaranteed bash 4.0+)
+    DRIVE_LETTER="${DOS_PATH[0]:0:1}"
     DRIVE_LETTER="${DRIVE_LETTER,,}"
 
     # Pop one element
-    BASH_WIN_PROJ=("${BASH_WIN_PROJ[@]:1}")
+    DOS_PATH=("${DOS_PATH[@]:1}")
 
     # Put together the new path:
-    PRJCT_DIR="/mnt/${DRIVE_LETTER}"
-    for i in "${BASH_WIN_PROJ[@]}"; do
-        PRJCT_DIR="${PRJCT_DIR}/${i}"
+    WSL_PATH="/mnt/${DRIVE_LETTER}"
+    for i in "${DOS_PATH[@]}"; do
+        WSL_PATH="${WSL_PATH}/${i}"
     done
+
+    # Return:
+    echo "$WSL_PATH"
+}
+
+function windowsDependency_DockerClient
+{
+    print "Checking for docker client..." $PURPLE
+
+    if hash docker 2>/dev/null; then
+        print "The docker client is already installed." $GREEN
+    else
+        print "Docker Client not installed." $RED
+        print "We're going to try to install it with apt now:" $BROWN
+        print "(Enter your password when prompted)" $BOLD
+
+        # This is technically a little more wasteful (in terms of space) than
+        # just downloading the client from http://dockr.ly/2wKcJva, but this
+        # way, they get updates easily and I don't have so set PATHs, so I
+        # don't care.
+
+        sudo echo Installing Docker...
+        sudo apt install -yy -q docker.io
+    fi
+}
+
+function windows_InstallDockerToolbox
+{
+    # Check if the Toolbox is already installed:
+    dockerToolboxPath=$(dos2wslPath "$(windowsCMD "echo %programfiles%")\\Docker Toolbox\\docker.exe")
+
+    if [ -e "$dockerToolboxPath" ]; then
+        print "Docker Toolbox is installed!" $PURPLE
+        return 0
+    else
+        # Install Docker Toolbox:
+        print "We couldn't find Docker Toolbox on your computer, so we're"
+        print "going to try to install it."
+
+        # First we need a download location that windows can access
+        # Let's use the User's Downloads folder:
+        WIN_HOME=$(windowsCMD echo %USERPROFILE%)
+        dPathWin="${WIN_HOME}\\Downloads\\DockerToolbox.exe"
+        dPath=$(dos2wslPath ${dPathWin})
+
+        # Now download the latest stable docker toolbox:
+        # (I believe Bash On Windows ships with wget so this should be safe)
+        wget -q --show-progress -O "${dPath}" \
+            "https://download.docker.com/win/stable/DockerToolbox.exe"
+
+        print "In a few seconds, the Docker Toolbox Installation should begin." $BOLD
+        print "Click Yes on the User Account Control Prompt." $BOLD
+        print "Press Install on any driver prompts that appear" $BOLD
+
+        sleep 5
+
+        $CMD /C "$dPathWin" /COMPONENTS=docker,dockermachine,dockercompose,kitematic,virtualbox /SILENT  | more
+
+        # Check if it really installed, just to be sure:
+        return windows_InstallDockerToolbox
+    fi
+}
+
+function windows_ConfigureDockerToolbox
+{
+    $CMD /K "C:\Program Files\Docker Toolbox" /C "C:\Program Files\Git\bin\bash.exe" --login -i "C:\Program Files\Docker Toolbox\start.sh"
+}
+
+function windowsDependency_DockerServer
+{
+    print "Checking for docker server..." $PURPLE
+
+    # First check if we have hypervisor support:
+    windowsCMD systeminfo | grep -q "A hypervisor has been detected."
+    hyperV=$?
+
+    if [ $hyperV -eq 0 ]; then
+        # If we have hypervisor support, check if docker is already configured:
+        if docker images > /dev/null 2>&1; then
+            print "Docker Server already works! (With HyperV!!)" $GREEN
+            return 0
+        else
+            # If we have hypervisor support but docker isn't already set up,
+            # alert the user:
+            print \
+"Your computer/OS support Hypervisor, which allows you to use the HyperV \
+version of Docker (better performance). However at the moment this tool \
+only can configure Docker Toolbox installs. If you wish to use the HyperV \
+edition of Docker please exit this tool, configure Docker manually and run \
+this script again. If you choose to continue, we will install Docker Toolbox." \
+$RED
+
+            print "Do you wish to proceed? (enter option #)" $RED
+    
+            select yn in "Yes (Docker Toolbox)" "No (Manual Configuration)"; do
+                case $yn in
+                    Yes )  break;;  # Continue as we would normally:
+                    No  )  exit 1;;
+                esac
+            done
+        fi
+    else
+        # If we don't have hypervisor, check if docker is already configured
+        # just in case:
+        if docker images > /dev/null 2>&1; then
+            print "Docker Server already works! (Without HyperV)" $GREEN
+            return 0
+        fi
+    fi
+
+    # If we're still here, it means that we need to configure/install Docker
+    # Toolbox:
+
+    # First Let's Install it:
+    windows_InstallDockerToolbox && \
+    windows_ConfigureDockerToolbox
+
+}
+
+function windowsDependencies
+{
+    windowsDependency_DockerClient && \
+    windowsDependency_DockerServer 
+}
+
+function windowsDocumentsPath
+{
+    # Get Windows Home Directory, windows style
+    WIN_HOME=$(windowsCMD echo %USERPROFILE%)
+
+    # Add our snippet to the path, windows style
+    WIN_PROJ="${WIN_HOME}\\Documents\\UAVA"
+    
+    # Convert to something we can use
+    PRJCT_DIR=$(dos2wslPath ${WIN_PROJ[@]})
 
     # And print
     print "Using ${PRJCT_DIR} as default Windows Path" $BOLD
     print "(can be accessed at ${WIN_PROJ} in Windows)" $BOLD
     #TODO: Make sure ^^^^ works w/o the echo trash
-}
-
-function windowsDependencies
-{
-
 }
 
 function windows
