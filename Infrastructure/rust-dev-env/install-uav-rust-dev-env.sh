@@ -55,9 +55,9 @@ function print
     fi
 
     if [ "$#" -eq $((1 + $N)) ]; then
-        echo $n $1
+        echo $n "${1}"
     elif [ "$#" -eq $((2 + $N)) ]; then
-        printf ${2} && echo $n $1 && printf ${NC}
+        printf ${2} && echo $n "${1}" && printf ${NC}
     else
         #printf ${RED} && echo "Error in print. Received: $*" && printf ${NC}
         printf ${RED} && echo "Received: $*" && printf ${NC}
@@ -167,7 +167,8 @@ function checkForDockerGroup
             sudo usermod -aG docker $(whoami)
 
             # Now let's see if that actually worked:
-            return checkForDockerGroup ((runCount++))
+            ((runCount++))
+            return checkForDockerGroup $runCount
         fi
     else
         # If there is no docker group, throw an error:
@@ -230,8 +231,74 @@ function windowsDependency_DockerClient
         # don't care.
 
         sudo echo Installing Docker...
-        sudo apt install -yy -q docker.io
+        sudo apt install -yy -q docker.io docker-compose
     fi
+
+    if 
+}
+
+function windows_checkForHypervisor
+{
+    # There are 3 possibilites for Hyper-V support:
+    #     - Enabled (and therefore supported)
+    #       * "A hypervisor has been detected"
+    #     - Supported (in Hardware and Software) but not enabled
+    #       * "VM Monitor Mode Extensions: Yes"
+    #       * "Virtualization Enabled In Firmware: Yes"
+    #       * "Second Level Address Translation: Yes"
+    #       * "Data Execution Prevention Available: Yes"
+    #       * "Microsoft Windows 10 ['Pro' || 'Education' || 'Enterprise']"
+    #           + Anything pre Windows 10 is automatically not supported.
+    #     - Not Supported (in Hardware and/or Software)
+    #       * Missing one of more of the above (^^^)
+    #
+    # 1st: Enabled/Not (0/1)
+    # 2nd: Supported OS/Unsupported OS (0/1)
+    # 3rd: VMM Exts/No (1/0)
+    # 4th: VIF/No (1/0)
+    # 5th: SLAT/No (1/0)
+    # 6th: DEP/No (1/0)
+    #
+    # Therefore:
+    # (0b000000) -> 0  => HyperV Enabled
+    # (0b000001) -> 1  => Right OS, No H/W support, not enabled 
+    # (0b`````0) -> -  => (IMPOSSIBLE; all the `'s must be 0)
+    # (0b000011) -> 3  => Not supported in H/W or S/W, not enabled
+    # (0b111101) -> 61 => H/W support and S/W support, just not enabled
+    # (0b111111) -> 63 => H/W support, but no S/W support
+
+    # Grab System Info:
+    sysinfo=$(windowsCMD systeminfo)
+    out=0
+
+    # Check if Hypervisor is enabled -> if not enabled, add 1:
+    if ! echo $sysinfo | grep -q "A hypervisor has been detected."; then
+        ((out++))
+    fi
+
+    # Check for a supported OS:
+    os=$(echo $sysinfo | awk 'BEGIN { FS = "OS" } { print $2 }')
+    if echo "$os" | grep -q "Microsoft Windows 10 Pro" || \
+       echo "$os" | grep -q "Microsoft Windows 10 Education" || \
+       echo "$os" | grep -q "Microsoft Windows 10 Enterprise"; then
+        ((out))
+    else
+        ((out+=2))
+    fi
+
+    # Check HW features:
+    hwFs=("VM Monitor Mode Extensions: Yes" "Virtualization Enabled In Firmware: Yes"
+        "Second Level Address Translation: Yes" "Data Execution Prevention Available: Yes")
+    
+    for ((i=0; i < ${#hwFs[@]}; i++)); do
+        if echo $sysinfo | grep -q "${hwFs[$i]}"; then
+            (( out += 2**($i+2) ))
+        fi
+    done
+
+    echo $out
+
+    return $out
 }
 
 function windows_InstallDockerToolbox
@@ -267,51 +334,93 @@ function windows_InstallDockerToolbox
         $CMD /C "$dPathWin" /COMPONENTS=docker,dockermachine,dockercompose,kitematic,virtualbox /SILENT  | more
 
         # Check if it really installed, just to be sure:
-        return windows_InstallDockerToolbox
+        return $(windows_InstallDockerToolbox)
     fi
 }
 
 function windows_ConfigureDockerToolbox
 {
-    $CMD /K "C:\Program Files\Docker Toolbox" /C "C:\Program Files\Git\bin\bash.exe" --login -i "C:\Program Files\Docker Toolbox\start.sh"
+    # Basically make use of the Docker Quickstart Terminal:
+    dockerToolboxPathWin="$(windowsCMD "echo %programfiles%")\\Docker Toolbox"
+    dockerToolboxPath=$(dos2wslPath "${dockerToolboxPathWin}")
+    # modifiedStartPath="/start2.sh"
+    gitBashPath=$(dos2wslPath "$(windowsCMD "echo %programfiles%")\\Git\\bin\\bash.exe")
+
+    # cp "${dockerToolboxPath}/start.sh" "${modifiedStartPath}"
+
+    cd "${dockerToolboxPath}" && "${gitBashPath}" #--login -i "C:\Program Files\Docker Toolbox\start.sh"
+    ##"${dockerToolboxPathWin}\\start.sh" && cd -
+
+    echo fin
+    sleep 10
+
+    echo "potato out"
+    # exit
+
+    # $CMD /K "C:\Program Files\Docker Toolbox" /C "C:\Program Files\Git\bin\bash.exe" --login -i "C:\Program Files\Docker Toolbox\start.sh"
 }
 
 function windowsDependency_DockerServer
 {
     print "Checking for docker server..." $PURPLE
 
-    # First check if we have hypervisor support:
-    windowsCMD systeminfo | grep -q "A hypervisor has been detected."
-    hyperV=$?
+    hyperV=$(windows_checkForHypervisor)
 
-    if [ $hyperV -eq 0 ]; then
-        # If we have hypervisor support, check if docker is already configured:
+    HYPER_V_ENABLED=0   # Hypervisor currently enabled
+    HYPER_V_SUPPORT=61  # Full support (HW/SW) but not enabled
+
+    if [ $hyperV -eq $HYPER_V_ENABLED ]; then
+        # If hypervisor is enabled, check if docker is already configured:
         if docker images > /dev/null 2>&1; then
             print "Docker Server already works! (With HyperV!!)" $GREEN
             return 0
         else
-            # If we have hypervisor support but docker isn't already set up,
+            # If hypervisor is enabled but docker isn't already set up,
             # alert the user:
             print \
-"Your computer/OS support Hypervisor, which allows you to use the HyperV \
-version of Docker (better performance). However at the moment this tool \
-only can configure Docker Toolbox installs. If you wish to use the HyperV \
-edition of Docker please exit this tool, configure Docker manually and run \
-this script again. If you choose to continue, we will install Docker Toolbox." \
-$RED
+"Hypervisor is enabled on your computer, which requires that you use Docker \
+instead of Docker Toolbox or use docker-machine with the HyperV driver. \
+However, as of now this tool can only configure Docker Toolbox installs. \
+To continue, either disable Hypervisor or manually install and configure \
+Docker. Once you do so, you can run this script again to proceed with \
+installation." $RED
 
-            print "Do you wish to proceed? (enter option #)" $RED
-    
-            select yn in "Yes (Docker Toolbox)" "No (Manual Configuration)"; do
-                case $yn in
-                    Yes )  break;;  # Continue as we would normally:
-                    No  )  exit 1;;
-                esac
-            done
+            exit 1
         fi
+    # If Docker is supported but not enabled:
+    elif [ $hyperV -eq $HYPER_V_SUPPORT ]; then
+        # Check if docker is already configured:
+        if docker images > /dev/null 2>&1; then
+            print "Docker Server already works (without HyperV, though this computer supports it)."
+            return 0
+        fi
+
+        # If not configured, warn the user // ask before continuing:
+        print \
+"Hypervisor is supported on your computer (in H/W and S/W) but not enabled; \
+this allows you to use Docker for Windows (if you enable Hypervisor) instead \
+of Docker Toolbox, which results in better performance. However, at this time \
+this tool can only configure Docker Toolbox installs. So, if you wish to \
+install and configure Docker for Windows manually, please run this script \
+again after doing so. If you choose to continue, we will install Docker \
+Toolbox on your computer." $RED
+        
+
+        print "Do you wish to continue with Docker Toolbox? (enter option #)" $BOLD
+        select yn in "Yes" "No"; do
+            case $yn in
+                Yes )  break;;
+                No  )  print "Install Docker for Windows and set up the Docker" $BOLD && \
+                       print "Client in Bash on Windows and then run this script" $BOLD && \
+                       print "again. " $BOLD -n && \
+                       print "Good Luck!" $CYAN && \
+                       exit 1;;
+            esac
+        done
+            
+    # Finally, if we have no real HyperV support:
     else
-        # If we don't have hypervisor, check if docker is already configured
-        # just in case:
+        #Check if docker is already configured just in case:
         if docker images > /dev/null 2>&1; then
             print "Docker Server already works! (Without HyperV)" $GREEN
             return 0
@@ -354,6 +463,10 @@ function windows
 {
     print "Bash on Windows will work just fine!" $CYAN
 
+    windowsDependencies
+
+    exit
+
     DOCKER="docker.exe"
     print "Using ${DOCKER} for Docker!" $PURPLE
 
@@ -383,6 +496,7 @@ EOF
 function macOSDependencies
 {
     # Check for brew:
+    return 0
 }
 
 function macOS
@@ -394,11 +508,12 @@ function macOS
 function linuxDependencies
 {
     # 
+    return 0
 }
 
 function linux
 {
-
+    return 0
 }
 
 # # # # # # # # # #
@@ -410,10 +525,10 @@ function checkOS
         macOS
     elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
         if grep -q Microsoft /proc/version; then
-            
+            windows
         else
             print "Another Linux user!" $CYAN
-
+            linux
             # Check if we're in the docker group:
             if ! groups $(whoami) | grep &>/dev/null '\bdocker\b'; then
                 print "Warning: You are not in the docker group!"
