@@ -177,7 +177,8 @@ function checkForDockerGroup
 
             # Now let's see if that actually worked:
             ((runCount++))
-            return checkForDockerGroup $runCount
+            checkForDockerGroup $runCount
+            return $?
         fi
     else
         # If there is no docker group, throw an error:
@@ -546,12 +547,25 @@ function windowsDependency_DockerServer
             print \
 "Hypervisor is enabled on your computer, which requires that you use Docker \
 instead of Docker Toolbox or use docker-machine with the HyperV driver. \
-However, as of now this tool can only configure Docker Toolbox installs. \
+However, as of now this tool is only tested for Docker Toolbox installs. \
 To continue, either disable Hypervisor or manually install and configure \
 Docker. Once you do so, you can run this script again to proceed with \
-installation." $RED
+installation. Or, attempt to install Docker For Windows using this script. \
+(This is untested!!)" $RED
 
-            exit 1
+            print "Do you wish to try to install Docker For Windows (not tested!!)? (enter option #)" $BOLD
+            select yn in "Yes" "No"; do
+                case $yn in
+                    Yes )  windows_InstallDockerForWindows && \
+                           windows_ConfigureForDockerForWindows && \
+                           return $?;;
+                    No  )  print "Install Docker for Windows and set up the Docker" $BOLD && \
+                           print "Client in Bash on Windows and then run this script" $BOLD && \
+                           print "again. (or disable HyperV) " $BOLD -n && \
+                           print "Good Luck!" $CYAN && \
+                           exit 1;;
+                esac
+            done
         fi
     # If Docker is supported but not enabled:
     elif [ $hyperV -eq $HYPER_V_SUPPORT ]; then
@@ -566,17 +580,20 @@ installation." $RED
 "Hypervisor is supported on your computer (in H/W and S/W) but not enabled; \
 this allows you to use Docker for Windows (if you enable Hypervisor) instead \
 of Docker Toolbox, which results in better performance. However, at this time \
-this tool can only configure Docker Toolbox installs. So, if you wish to \
+this tool is only tested on Docker Toolbox installs. So, if you wish to \
 install and configure Docker for Windows manually, please run this script \
-again after doing so. If you choose to continue, we will install Docker \
-Toolbox on your computer." $RED
+again after doing so. If you choose to continue, you can install Docker Toolbox \
+or try the untested Docker For Windows installation process." $RED
         
 
-        print "Do you wish to continue with Docker Toolbox? (enter option #)" $BOLD
-        select yn in "Yes" "No"; do
+        print "What do you wish to install? (enter option #)" $BOLD
+        select yn in "Toolbox" "Docker For Windows" "Nothing"; do
             case $yn in
-                Yes )  break;;
-                No  )  print "Install Docker for Windows and set up the Docker" $BOLD && \
+                Toolbox)  break;;
+                "Docker For Windows") windows_InstallDockerForWindows && \
+                           windows_ConfigureForDockerForWindows && \
+                           return $?;;
+                Nothing)  print "Install Docker for Windows and set up the Docker" $BOLD && \
                        print "Client in Bash on Windows and then run this script" $BOLD && \
                        print "again. " $BOLD -n && \
                        print "Good Luck!" $CYAN && \
@@ -688,6 +705,11 @@ function macOS
     } || print "macOS Dependencies failed to install. Please try again." $RED && badEnv 1
     
     DEPENDENCIES+=("brew socat xquartz")
+}
+
+function linuxDependency_Generic
+{
+    return 0
 }
 
 function linuxDependency_Docker
@@ -909,7 +931,8 @@ trap emergencyExit SIGINT SIGTERM
     projectDirectory && \
     dockerRun && \
     installAliases && \
-    print "You are all set up! Adieu, mon ami!" $CYAN
+    print "You are all set up! Adieu, mon ami!" $CYAN && \
+    print "(Reopen your terminal for best results)" $CYAN
 } || badEnv 1
 
 
@@ -919,6 +942,6 @@ trap emergencyExit SIGINT SIGTERM
 
 ##########################
 # AUTHOR:  Rahul Butani  #
-# DATE:    Sept 25, 2017 #
-# VERSION: 0.2.0         #
+# DATE:    Sept 26, 2017 #
+# VERSION: 0.9.1         #
 ##########################
