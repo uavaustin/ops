@@ -19,7 +19,7 @@
 set -e
 
 DOCKER="docker"
-DEPENDENCIES=("cat grep expr whoami xargs which")
+DEPENDENCIES=("cat grep expr whoami xargs which docker")
 
 # Configuration Variables #
 IMAGE_NAME="uavaustin/rust-dev-env:latest"
@@ -28,6 +28,13 @@ PRJCT_DIR="${HOME}/Documents/UAVA/"
 
 aliases="true"
 output="true"
+
+OS=0
+MACOS=1
+LINUX=2
+WSLIN=3
+
+DISPLAY=":0"
 
 # Colours #
 BOLD='\033[0;1m' #(OR USE 31)
@@ -132,8 +139,6 @@ function checkDependenciesFinal
         fi
     done
 
-    DOCKER=$(which ${DOCKER})
-
     return ${exitC}
 }
 
@@ -164,7 +169,11 @@ function checkForDockerGroup
             print "This is necessary for us to add you to the docker group." $RED
             print "(it's perfectly safe)" $RED
 
-            sudo usermod -aG docker $(whoami)
+            if [ ${OS} -eq ${MACOS} ]; then
+                sudo dscl . append /Groups/docker GroupMembership $(whoami)
+            else
+                sudo usermod -aG docker $(whoami)
+            fi
 
             # Now let's see if that actually worked:
             ((runCount++))
@@ -233,8 +242,6 @@ function windowsDependency_DockerClient
         sudo echo Installing Docker...
         sudo apt install -yy -q docker.io docker-compose
     fi
-
-    if 
 }
 
 function windows_checkForHypervisor
@@ -301,13 +308,97 @@ function windows_checkForHypervisor
     return $out
 }
 
+# TODO: Test this function // add proper Docker for Windows support:
+function windows_InstallDockerForWindows
+{
+    # Check if Docker for Windows is already installed:
+    docker4WinPath=$(dos2wslPath "$(windowsCMD "echo %programfiles%")\\Docker\\Docker\\Docker for Windows.exe")
+
+    if [ -e "$docker4WinPath" ]; then
+        print "Docker For Windows is installed!" $PURPLE
+        return 0
+    else
+        # Install Docker Toolbox:
+        print "We couldn't find Docker For Windows on your computer, so we're"
+        print "going to try to install it."
+
+        # First we need a download location that windows can access
+        # Let's use the User's Downloads folder:
+        WIN_HOME=$(windowsCMD echo %USERPROFILE%)
+        dPathWin="${WIN_HOME}\\Downloads\\DockerForWindows.exe"
+        dPath=$(dos2wslPath ${dPathWin})
+
+        # Now download the latest stable docker toolbox:
+        # (I believe Bash On Windows ships with wget so this should be safe)
+        wget -q --show-progress -O "${dPath}" \
+            "https://download.docker.com/win/stable/Docker%20for%20Windows%20Installer.exe"
+
+        print "In a few seconds, the Docker For Windows Installation should begin." $BOLD
+        print "Click Yes on the User Account Control Prompt." $BOLD
+        print "Press Install on any driver prompts that appear" $BOLD
+
+        sleep 5
+
+        $CMD /C "$dPathWin" install --quiet | more
+
+        # Check if it really installed, just to be sure:
+        return $(windows_InstallDockerForWindows)
+    fi
+}
+
+# TODO: Test this disaster!
+function windows_ConfigureForDockerForWindows
+{
+    print "We're going to configure Docker For Windows to work with Bash now." $BROWN
+    print "If you're prompted for your password enter it." $BOLD
+
+    # Make links for drives to match Git Bash Paths:
+    for d in /mnt/*; do
+        s="/$(basename $d)/"
+        if [[ ! -e "${s}" ]]; then
+            sudo ln -s "${d}" /
+        fi
+    done
+
+    # Add necessary things to .bashrc
+    PROF_TITLE="# Additions for Docker For Windows #"
+
+    if grep -q "${PROF_TITLE}" "$HOME/.bashrc"; then
+        print ".bashrc changes already present." $PURPLE
+    else
+        # TODO: Update with program files var
+        cat << EOF >> "$HOME/.bashrc"
+
+${PROF_TITLE}
+pushd '/c/Program Files/Docker/Docker/resources/bin/' > /dev/null
+# Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes. 
+arr=\$(./docker-machine.exe env --shell bash | sed 's/C:/\/c/' | sed 's/\\\\/\//g' | sed 's:#.*$::g' | sed 's/"/\x27/g')
+readarray -t y <<<"\$arr"
+for ((i=0; i< \${#y[@]}; i++)); do eval "\${y[\$i]}"; done
+popd > /dev/null
+# Change /mnt/c/ to /c/ in current working directory path
+cd \$(pwd | sed 's/\/mnt\/c\//\/c\//')
+EOF
+    fi
+
+    # Now run the same commands:
+    pushd '/c/Program Files/Docker/Docker/resources/bin/' > /dev/null
+    # Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes. 
+    arr=$(./docker-machine.exe env --shell bash | sed 's/C:/\/c/' | sed 's/\\/\//g' | sed 's:#.*$::g' | sed 's/"/\x27/g')
+    readarray -t y <<<"$arr"
+    for ((i=0; i< ${#y[@]}; i++)); do eval "${y[$i]}"; done
+    popd > /dev/null
+
+    docker images
+}
+
 function windows_InstallDockerToolbox
 {
     # Check if the Toolbox is already installed:
     dockerToolboxPath=$(dos2wslPath "$(windowsCMD "echo %programfiles%")\\Docker Toolbox\\docker.exe")
 
     if [ -e "$dockerToolboxPath" ]; then
-        print "Docker Toolbox is installed!" $PURPLE
+        print "Docker Toolbox is installed!" $GREEN
         return 0
     else
         # Install Docker Toolbox:
@@ -334,30 +425,58 @@ function windows_InstallDockerToolbox
         $CMD /C "$dPathWin" /COMPONENTS=docker,dockermachine,dockercompose,kitematic,virtualbox /SILENT  | more
 
         # Check if it really installed, just to be sure:
-        return $(windows_InstallDockerToolbox)
+        windows_InstallDockerToolbox
+        return $?
     fi
 }
 
-function windows_ConfigureDockerToolbox
+function windows_ConfigureForDockerToolbox
 {
-    # Basically make use of the Docker Quickstart Terminal:
-    dockerToolboxPathWin="$(windowsCMD "echo %programfiles%")\\Docker Toolbox"
-    dockerToolboxPath=$(dos2wslPath "${dockerToolboxPathWin}")
-    # modifiedStartPath="/start2.sh"
-    gitBashPath=$(dos2wslPath "$(windowsCMD "echo %programfiles%")\\Git\\bin\\bash.exe")
+    print "We're going to configure Docker Toolbox to work with Bash now." $BROWN
+    print "If you're prompted for your password enter it." $BOLD
 
-    # cp "${dockerToolboxPath}/start.sh" "${modifiedStartPath}"
+    # Make links for drives to match Git Bash Paths:
+    for d in /mnt/*; do
+        s="/$(basename $d)/"
+        if [[ ! -e "${s}" ]]; then
+            sudo ln -s "${d}" /
+        fi
+    done
 
-    cd "${dockerToolboxPath}" && "${gitBashPath}" #--login -i "C:\Program Files\Docker Toolbox\start.sh"
-    ##"${dockerToolboxPathWin}\\start.sh" && cd -
+    # Add necessary things to .bashrc
+    PROF_TITLE="# Additions for Docker Toolbox #"
 
-    echo fin
-    sleep 10
+    if grep -q "${PROF_TITLE}" "$HOME/.bashrc"; then
+        print ".bashrc changes already present." $PURPLE
+    else
+        # TODO: Update with program files var
+        cat << EOF >> "$HOME/.bashrc"
 
-    echo "potato out"
-    # exit
+${PROF_TITLE}
+export VBOX_MSI_INSTALL_PATH='/c/Program Files/Oracle/VirtualBox/'
+pushd '/c/Program Files/Docker Toolbox/' > /dev/null
+./start.sh exit
+# Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes. 
+arr=\$(./docker-machine.exe env --shell bash | sed 's/C:/\/c/' | sed 's/\\\\/\//g' | sed 's:#.*$::g' | sed 's/"/\x27/g')
+readarray -t y <<<"\$arr"
+for ((i=0; i< \${#y[@]}; i++)); do eval "\${y[\$i]}"; done
+popd > /dev/null
+# Change /mnt/c/ to /c/ in current working directory path
+cd \$(pwd | sed 's/\/mnt\/c\//\/c\//')
+EOF
+    fi
 
-    # $CMD /K "C:\Program Files\Docker Toolbox" /C "C:\Program Files\Git\bin\bash.exe" --login -i "C:\Program Files\Docker Toolbox\start.sh"
+    # Now run the same commands:
+    export VBOX_MSI_INSTALL_PATH='/c/Program Files/Oracle/VirtualBox/'
+    pushd '/c/Program Files/Docker Toolbox/' > /dev/null
+    ./start.sh exit > /dev/null 2>&1
+    # Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes. 
+    arr=$(./docker-machine.exe env --shell bash | sed 's/C:/\/c/' | sed 's/\\/\//g' | sed 's:#.*$::g' | sed 's/"/\x27/g')
+    readarray -t y <<<"$arr"
+    for ((i=0; i< ${#y[@]}; i++)); do eval "${y[$i]}"; done
+    popd > /dev/null
+
+    docker images
 }
 
 function windowsDependency_DockerServer
@@ -391,7 +510,7 @@ installation." $RED
     elif [ $hyperV -eq $HYPER_V_SUPPORT ]; then
         # Check if docker is already configured:
         if docker images > /dev/null 2>&1; then
-            print "Docker Server already works (without HyperV, though this computer supports it)."
+            print "Docker Server already works (without HyperV, though this computer supports it)." $GREEN
             return 0
         fi
 
@@ -430,15 +549,14 @@ Toolbox on your computer." $RED
     # If we're still here, it means that we need to configure/install Docker
     # Toolbox:
 
-    # First Let's Install it:
     windows_InstallDockerToolbox && \
-    windows_ConfigureDockerToolbox
-
+    windows_ConfigureForDockerToolbox
 }
 
 function windowsDependencies
 {
     windowsDependency_DockerClient && \
+    checkForDockerGroup && \
     windowsDependency_DockerServer 
 }
 
@@ -456,7 +574,6 @@ function windowsDocumentsPath
     # And print
     print "Using ${PRJCT_DIR} as default Windows Path" $BOLD
     print "(can be accessed at ${WIN_PROJ} in Windows)" $BOLD
-    #TODO: Make sure ^^^^ works w/o the echo trash
 }
 
 function windows
@@ -465,14 +582,7 @@ function windows
 
     windowsDependencies
 
-    exit
-
-    DOCKER="docker.exe"
-    print "Using ${DOCKER} for Docker!" $PURPLE
-
     print "Making some windows specific changes..." $PURPLE
-
-
 
     # Continue with .profile additions:
     PROF_TITLE="# Added automagically for Docker #"
@@ -486,33 +596,102 @@ function windows
 
 ${PROF_TITLE}
 PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
-PATH="\$PATH:/mnt/c/Program\ Files/Docker/Docker/resources/bin"
+PATH="\$PATH:/c/Program\ Files/Docker\ Toolbox/"
 export DISPLAY=:0
-alias docker="docker.exe"
+alias docker-machine="docker-machine.exe"
 EOF
 
+    windowsDocumentsPath
+
+    DISPLAY="$("/c/Program Files/Docker Toolbox/docker-machine.exe" ip):0"
 }
 
 function macOSDependencies
 {
     # Check for brew:
+    if hash brew; then
+        print "Homebrew is installed." $GREEN
+    else
+        print "Homebrew is not installed." $RED
+        print "We're going to try to install it now:" $BROWN
+        print "(Enter your password when prompted)" $BOLD
+
+        /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+        source "$HOME/.profile"
+    fi
+
+    # Brew will save us if we try to install something that's already installed, hopefully:
+
+
     return 0
 }
 
 function macOS
 {
     print "Hey there macOS user!" $CYAN
-    DEPENDENCIES+=("brew socat xquartz") # << TODO: check for the actual bin name for xquartz
+
+    {
+        macOSDependencies && \
+        checkForDockerGroup
+    } || print "macOS Dependencies failed to install. Please try again." $RED && badEnv 1
+    
+    DEPENDENCIES+=("brew socat xquartz")
+}
+
+function linuxDependency_Docker
+{
+    print "Checking for docker..." $PURPLE
+
+    if hash docker 2>/dev/null; then
+        print "Docker is already installed!" $GREEN
+        return 0
+    else
+        print "Docker is not installed." $RED
+
+        if ! hash apt; then
+            print "Your installation does not use apt. Please install docker manually and try again." $RED
+            print "https://docs.docker.com/engine/installation/" $RED
+            return 1
+        fi
+
+        print "We're going to try to install it with apt now:" $BROWN
+        print "(Enter your password when prompted)" $BOLD
+
+        sudo echo Installing Docker...
+        sudo apt -q update && \
+        sudo apt-get install \
+            apt-transport-https \
+            ca-certificates \
+            curl \
+            software-properties-common && \
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && \
+        sudo add-apt-repository \
+           "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+           $(lsb_release -cs) \
+           stable" && \
+        sudo apt-get update && \
+        sudo apt-get install docker-ce
+
+        return $?
+    fi
 }
 
 function linuxDependencies
 {
-    # 
+    {
+    linuxDependency_Generic && \
+    linuxDependency_Docker && \
+    checkForDockerGroup && \
     return 0
+    } || print "Failed to install Docker." $RED && badEnv 1
 }
 
 function linux
 {
+    print "Another Linux user!" $CYAN
+
+    linuxDependencies
+
     return 0
 }
 
@@ -522,17 +701,15 @@ function checkOS
 {
     #Creds to SO: http://bit.ly/1pHeRRa
     if [ "$(uname)" == "Darwin" ]; then
+        OS=${MACOS}
         macOS
     elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
         if grep -q Microsoft /proc/version; then
+            OS=${WSLIN}
             windows
         else
-            print "Another Linux user!" $CYAN
+            OS=${LINUX}
             linux
-            # Check if we're in the docker group:
-            if ! groups $(whoami) | grep &>/dev/null '\bdocker\b'; then
-                print "Warning: You are not in the docker group!"
-            fi
         fi
     elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
         print "Sorry, Cygwin/MinGW are not supported at this time." $RED
@@ -616,7 +793,7 @@ trap emergencyExit SIGINT SIGTERM
 
 {
     checkOS && \
-    checkDependencies && \
+    checkDependenciesFinal && \
     processArguments "$*" && \
     projectDirectory && \
     dockerRun && \
@@ -624,6 +801,10 @@ trap emergencyExit SIGINT SIGTERM
     print "You are all set up! Adieu, mon ami!" $CYAN
 } || badEnv 1
 
+
+#Notes:
+# It's actually possible to automate the WSL installation, but I don't want to do this.
+# (https://github.com/xezpeleta/bowinstaller)
 
 ##########################
 # AUTHOR:  Rahul Butani  #
