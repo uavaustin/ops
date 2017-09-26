@@ -223,6 +223,44 @@ function dos2wslPath
     echo "$WSL_PATH"
 }
 
+function windowsDependency_Xming
+{
+    print "Checking for Xming..." $PURPLE
+
+    xmingWinPath=$(dos2wslPath "$(windowsCMD "echo %programfiles(x86)%")\\Xming\\Xming.exe")
+
+    if [ -e "$xmingWinPath" ]; then
+        print "Xming is installed!" $GREEN
+        return 0
+    else
+        # Install Xming:
+        print "We couldn't find Xming on your computer, so we're"
+        print "going to try to install it."
+
+        # First we need a download location that windows can access
+        # Let's use the User's Downloads folder:
+        WIN_HOME=$(windowsCMD echo %USERPROFILE%)
+        dPathWin="${WIN_HOME}\\Downloads\\Xming-6-9-0-31.exe"
+        dPath=$(dos2wslPath ${dPathWin})
+
+        # Now download the latest stable xming:
+        # (I believe Bash On Windows ships with wget so this should be safe)
+        wget -q --show-progress -O "${dPath}" \
+            "https://downloads.sourceforge.net/project/xming/Xming/6.9.0.31/Xming-6-9-0-31-setup.exe"
+
+        print "In a few seconds, the Xming Installation should begin." $BOLD
+        print "Click Yes on the User Account Control Prompt." $BOLD
+
+        sleep 3
+
+        $CMD /C "$dPathWin" /SILENT  | more
+
+        # Check if it really installed, just to be sure:
+        windowsDependency_Xming
+        return $?
+    fi
+}
+
 function windowsDependency_DockerClient
 {
     print "Checking for docker client..." $PURPLE
@@ -234,13 +272,22 @@ function windowsDependency_DockerClient
         print "We're going to try to install it with apt now:" $BROWN
         print "(Enter your password when prompted)" $BOLD
 
-        # This is technically a little more wasteful (in terms of space) than
-        # just downloading the client from http://dockr.ly/2wKcJva, but this
-        # way, they get updates easily and I don't have so set PATHs, so I
-        # don't care.
-
         sudo echo Installing Docker...
-        sudo apt install -yy -q docker.io docker-compose
+        sudo apt -qq update && \
+        sudo apt-get install -y -qq \
+            apt-transport-https \
+            ca-certificates \
+            curl \
+            software-properties-common && \
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        sudo add-apt-repository -y \
+           "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+           $(lsb_release -cs) \
+           stable" && \
+        sudo apt-get update -qq && \
+        sudo apt-get install -y -qq --allow-unauthenticated docker-ce
+
+        return $?
     fi
 }
 
@@ -455,7 +502,7 @@ function windows_ConfigureForDockerToolbox
 ${PROF_TITLE}
 export VBOX_MSI_INSTALL_PATH='/c/Program Files/Oracle/VirtualBox/'
 pushd '/c/Program Files/Docker Toolbox/' > /dev/null
-./start.sh exit
+./start.sh exit > /dev/null 2>&1
 # Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes. 
 arr=\$(./docker-machine.exe env --shell bash | sed 's/C:/\/c/' | sed 's/\\\\/\//g' | sed 's:#.*$::g' | sed 's/"/\x27/g')
 readarray -t y <<<"\$arr"
@@ -469,7 +516,7 @@ EOF
     # Now run the same commands:
     export VBOX_MSI_INSTALL_PATH='/c/Program Files/Oracle/VirtualBox/'
     pushd '/c/Program Files/Docker Toolbox/' > /dev/null
-    ./start.sh exit > /dev/null 2>&1
+    ./start.sh exit
     # Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes. 
     arr=$(./docker-machine.exe env --shell bash | sed 's/C:/\/c/' | sed 's/\\/\//g' | sed 's:#.*$::g' | sed 's/"/\x27/g')
     readarray -t y <<<"$arr"
@@ -557,7 +604,8 @@ function windowsDependencies
 {
     windowsDependency_DockerClient && \
     checkForDockerGroup && \
-    windowsDependency_DockerServer 
+    windowsDependency_DockerServer && \
+    windowsDependency_Xming
 }
 
 function windowsDocumentsPath
@@ -584,15 +632,22 @@ function windows
 
     print "Making some windows specific changes..." $PURPLE
 
-    # Continue with .profile additions:
+    windowsDocumentsPath
+
+    DISP="$("/c/Program Files/Docker Toolbox/docker-machine.exe" ip)"
+    DISPLAY="$(echo $DISP | awk 'BEGIN {FS="."} {print $1"."$2"."$3"."1}'):0"
+
+    print "Using ${DISPLAY} as \$DISPLAY..." $PURPLE
+
+    # Continue with .bashrc additions:
     PROF_TITLE="# Added automagically for Docker #"
 
-    if grep -q "${PROF_TITLE}" "$HOME/.profile"; then
+    if grep -q "${PROF_TITLE}" "$HOME/.bashrc"; then
         print "Changes already present." $PURPLE
         return $?
     fi
 
-    cat << EOF >> "$HOME/.profile"
+    cat << EOF >> "$HOME/.bashrc"
 
 ${PROF_TITLE}
 PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
@@ -600,10 +655,6 @@ PATH="\$PATH:/c/Program\ Files/Docker\ Toolbox/"
 export DISPLAY=:0
 alias docker-machine="docker-machine.exe"
 EOF
-
-    windowsDocumentsPath
-
-    DISPLAY="$("/c/Program Files/Docker Toolbox/docker-machine.exe" ip):0"
 }
 
 function macOSDependencies
@@ -621,7 +672,8 @@ function macOSDependencies
     fi
 
     # Brew will save us if we try to install something that's already installed, hopefully:
-
+    brew install socat
+    brew cask install xquartz
 
     return 0
 }
@@ -658,19 +710,19 @@ function linuxDependency_Docker
         print "(Enter your password when prompted)" $BOLD
 
         sudo echo Installing Docker...
-        sudo apt -q update && \
-        sudo apt-get install \
+        sudo apt -qq update && \
+        sudo apt-get install -y -qq \
             apt-transport-https \
             ca-certificates \
             curl \
             software-properties-common && \
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && \
-        sudo add-apt-repository \
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        sudo add-apt-repository -y \
            "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
            $(lsb_release -cs) \
            stable" && \
-        sudo apt-get update && \
-        sudo apt-get install docker-ce
+        sudo apt-get update -qq && \
+        sudo apt-get install -y -qq --allow-unauthenticated docker-ce
 
         return $?
     fi
@@ -732,6 +784,25 @@ function projectDirectory
 
 function dockerRun
 {
+    if [ "$(docker ps -qa -f name=${CNTNR_NAME})" ]; then
+
+        print "Container already exists; do you which to proceed? (enter option #)" $BOLD
+        print "(Existing container will be stopped and deleted)" $RED
+
+        select yn in "Yes" "No"; do
+            case $yn in
+                Yes )  break;;
+                No  )  exit 1;;
+            esac
+        done
+
+        if [ ! "$(docker ps -aq -f status=exited -f name=${CNTNR_NAME})" ]; then
+            docker stop "${CNTNR_NAME}" -t 0
+        fi
+
+        docker rm "${CNTNR_NAME}"
+    fi
+
     cd ~ && \
     "${DOCKER}" run -it -d \
         --name "${CNTNR_NAME}" \
@@ -752,23 +823,63 @@ function installAliases
     # ALIAS_FILE_LOC=${ALIAS_FILE-"~/.bash_aliases"}
     print "Using ${ALIAS_FILE:="${HOME}/.bash_aliases"} as alias file."
 
-    echo ${CNTNR_NAME}
-
-    if grep -q "# ${CNTNR_NAME} Aliases #" ${ALIAS_FILE}; then
+    if grep -q "# ${CNTNR_NAME} Aliases v0.1.0 #" ${ALIAS_FILE}; then
         print "Aliases already installed." $PURPLE
         return $?
     fi
 
     cat << EOF >> "${ALIAS_FILE}"
-# ${CNTNR_NAME} Aliases #
+# ${CNTNR_NAME} Aliases v0.1.0 #
 alias uava='cd "${PRJCT_DIR}"'
 alias uavai='docker exec -it ${CNTNR_NAME} bash -c "intellij-idea-community"'
 alias uavas='docker exec -it ${CNTNR_NAME} bash -c "subl"'
+alias uavad='docker exec -it ${CNTNR_NAME} bash -c "gnome-terminal"'
 alias uavaD='docker exec -it ${CNTNR_NAME} /bin/zsh'
+EOF
+
+    if [[ ${OS} -eq ${MACOS} ]]; then
+        cat << EOF >> "${ALIAS_FILE}"
+function uavaS
+{
+    socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:/tmp/x11_display > /dev/null 2>&1 &
+    xquartz > /dev/null 2>&1 &
+    docker start ${CNTNR_NAME}
+}
+
+function uavaE
+{
+    docker stop ${CNTNR_NAME} -t 1
+    pkill socat > /dev/null 2>&1
+    pkill xquartz > /dev/null 2>&1
+}
+
+EOF
+    elif [[ ${OS} -eq ${WSLIN} ]]; then
+         cat << EOF >> "${ALIAS_FILE}"
+function uavaS
+{
+    \$("${CMD}" /C "$(windowsCMD "echo %programfiles(x86)%")\\Xming\\Xming.exe" :0 -clipboard -multiwindow -ac >nul 2>&1) &
+    docker start ${CNTNR_NAME}
+}
+alias uavaE='docker stop ${CNTNR_NAME} -t 1'
+
+EOF
+    else
+        cat << EOF >> "${ALIAS_FILE}"
 alias uavaS='docker start ${CNTNR_NAME}'
 alias uavaE='docker stop ${CNTNR_NAME} -t 1'
 
 EOF
+    fi
+
+print "Some helpful aliases:" $CYAN
+print "    uava  => Switch to project directory" $BOLD
+print "    uavaS => Start Container" $BOLD
+print "    uavaE => Stop (End) Container" $BOLD
+print "    uavaD => Open tty shell" $BOLD
+print "    uavai => Start IntelliJ" $BOLD
+print "    uavas => Start Sublime Text" $BOLD
+print "    uavaD => Open gnome-terminal" $BOLD
 }
 
 function emergencyExit
@@ -808,6 +919,6 @@ trap emergencyExit SIGINT SIGTERM
 
 ##########################
 # AUTHOR:  Rahul Butani  #
-# DATE:    Sept 05, 2017 #
-# VERSION: 0.0.0         #
+# DATE:    Sept 25, 2017 #
+# VERSION: 0.2.0         #
 ##########################
