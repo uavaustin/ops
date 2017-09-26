@@ -9,3 +9,6 @@ Contains:
 * Rust IntelliJ Plugin 0.1.0.2066
 * Misc. Sublime Text Rust Plugins
 * And other goodies
+
+`wget https://raw.githubusercontent.com/uavaustin/ops/0.1.0/Infrastructure/rust-dev-env/install-uav-rust-dev-env.sh && chmod +x install-uav-rust-dev-env.sh && ./install-uav-rust-dev-env.sh`
+

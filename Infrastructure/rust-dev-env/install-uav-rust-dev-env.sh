@@ -34,7 +34,7 @@ MACOS=1
 LINUX=2
 WSLIN=3
 
-DISPLAY=":0"
+DISPLAY="${DISPLAY:-:0}"
 
 # Colours #
 BOLD='\033[0;1m' #(OR USE 31)
