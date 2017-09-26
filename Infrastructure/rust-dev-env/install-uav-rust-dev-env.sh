@@ -93,7 +93,7 @@ exit $1
 
 function badEnv
 {
-    print "Go to http://uavaustin.org/camp/rust/0 for instructions on how to configure your environment." $BOLD
+    print "Go to http://bit.ly/2foRMj0 for instructions on how to configure your environment." $BOLD
     print "(and then try again)"
     exit $1
 }
@@ -146,11 +146,11 @@ function checkForDockerGroup
 {
     runCount=$1
 
-    if [[ $runCount -gt 1 ]]; then
+    if [[ $runCount -gt 2 ]]; then
         print "Sorry, something went wrong." $RED
         print "We couldn't add you to the docker group." $RED
         badEnv 1
-    elif [[ $runCount -eq 1 ]]; then
+    elif [[ $runCount -gt 0 ]]; then
         successString="You're now in the docker group! Great Success!"
     else
         successString="You're already in the docker group! Well done!"
@@ -173,6 +173,7 @@ function checkForDockerGroup
                 sudo dscl . append /Groups/docker GroupMembership $(whoami)
             else
                 sudo usermod -aG docker $(whoami)
+                su - $USER
             fi
 
             # Now let's see if that actually worked:
@@ -181,9 +182,13 @@ function checkForDockerGroup
             return $?
         fi
     else
-        # If there is no docker group, throw an error:
-        print "We couldn't find a docker group." $RED
-        badEnv 1
+        # If there is no docker group, add one:
+        # This will not work on macOS and that is probably fine.
+        print "Creating a docker group..." $BROWN
+        sudo groupadd docker
+        
+        ((runCount++))
+        checkForDockerGroup $runCount
     fi
 }
 
@@ -282,7 +287,7 @@ function windowsDependency_DockerClient
             software-properties-common && \
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
         sudo add-apt-repository -y \
-           "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+           "deb [arch=amd64] https://download.docker.com/linux/$(lsb_release -is) \
            $(lsb_release -cs) \
            stable" && \
         sudo apt-get update -qq && \
