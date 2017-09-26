@@ -94,7 +94,7 @@ exit $1
 function badEnv
 {
     print "Go to http://bit.ly/2foRMj0 for instructions on how to configure your environment." $BOLD
-    print "(and then try again)"
+    print "(and then try again)" $BOLD
     exit $1
 }
 
@@ -173,7 +173,9 @@ function checkForDockerGroup
                 sudo dscl . append /Groups/docker GroupMembership $(whoami)
             else
                 sudo usermod -aG docker $(whoami)
-                su - $USER
+                print "Now, run sudo login and then re-run this script." $BOLD
+                print "Or just log in again (reccomended)" $BOLD
+                exit 1
             fi
 
             # Now let's see if that actually worked:
@@ -280,18 +282,22 @@ function windowsDependency_DockerClient
 
         sudo echo Installing Docker...
         sudo apt -qq update && \
-        sudo apt-get install -y -qq \
+        sudo apt install -y -qq \
             apt-transport-https \
             ca-certificates \
             curl \
             software-properties-common && \
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        # Have to do the var stuff here because Bash on Windows is stupid and returns Ubuntu instead of ubuntu
+        # which causes the docker server to 404
+        release=$(lsb_release -is)
+        release=${release,,} # Bash 4+ feature, fine for WSL
         sudo add-apt-repository -y \
-           "deb [arch=amd64] https://download.docker.com/linux/$(lsb_release -is) \
+           "deb [arch=amd64] https://download.docker.com/linux/${release} \
            $(lsb_release -cs) \
            stable" && \
-        sudo apt-get update -qq && \
-        sudo apt-get install -y -qq --allow-unauthenticated docker-ce
+        sudo apt update -qq && \
+        sudo apt install -y -qq --allow-unauthenticated docker-ce
 
         return $?
     fi
@@ -618,16 +624,24 @@ or try the untested Docker For Windows installation process." $RED
     # If we're still here, it means that we need to configure/install Docker
     # Toolbox:
 
-    windows_InstallDockerToolbox && \
-    windows_ConfigureForDockerToolbox
+    {
+        windows_InstallDockerToolbox && \
+        windows_ConfigureForDockerToolbox
+    } || print "Failed to install Docker Toolbox." $RED && badEnv 1
+
+    return $?
 }
 
 function windowsDependencies
 {
-    windowsDependency_DockerClient && \
-    checkForDockerGroup && \
-    windowsDependency_DockerServer && \
-    windowsDependency_Xming
+    {
+        windowsDependency_DockerClient && \
+        checkForDockerGroup && \
+        windowsDependency_DockerServer && \
+        windowsDependency_Xming
+    } || print "Failed to install dependencies." $RED && badEnv 1
+
+    return $?
 }
 
 function windowsDocumentsPath
@@ -745,7 +759,7 @@ function linuxDependency_Docker
             software-properties-common && \
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
         sudo add-apt-repository -y \
-           "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+           "deb [arch=amd64] https://download.docker.com/linux/$(lsb_release -is)\
            $(lsb_release -cs) \
            stable" && \
         sudo apt-get update -qq && \

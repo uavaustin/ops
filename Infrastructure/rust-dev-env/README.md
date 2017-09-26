@@ -20,3 +20,4 @@ On macOS, you'll have to install Docker yourself. This script has been tested wi
 
 `curl https://raw.githubusercontent.com/uavaustin/ops/0.1.0/Infrastructure/rust-dev-env/install-uav-rust-dev-env.sh -o install-env.sh && chmod +x install-env.sh && ./install-env.sh`
 
+N.B: curl is no longer installed by deafault on Ubuntu 17.10. Either install curl or use wget.
