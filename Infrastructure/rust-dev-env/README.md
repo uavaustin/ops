@@ -12,6 +12,8 @@ Contains:
 
 On Windows, install WSL/Bash on Windows before running the install script. Requires Windows 1703 (Spring Creators Update) or newer. If you're really lazy, run [this](https://github.com/xezpeleta/bowinstaller/releases/download/v0.1.1/bowinstaller.exe) to install Bash on Windows for you.
 
+Note that Docker For Windows installations don't currently work right, so please select Docker Toolbox if the script prompts you.
+
 On Linux, ensure you have a supported distribution. We're using Docker CE Stable [which currently supports](https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/) Ubuntu Trusty (14.04 LTS), Xenial (16.04 LTS), and Zesty (17.04).
 
 Other Linux Distros are supported as well ([check the compatability pages under Docker CE](https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/)), however our script will only install Docker for you on systems that use apt (Debian/Ubuntu-based systems). If you're using something that isn't apt-based (Fedora/Arch/openSUSE/etc.) or isn't supported by the Docker CE Stable Release, you're on your own. Make sure you install docker and can run `docker run hello-world` without sudo before you run our script again.

@@ -1,19 +1,19 @@
 #!/bin/bash
 
 ###############################################################################
-# Installs and configures the UAV Austin Rust Dev Environment locally. 
-# 
+# Installs and configures the UAV Austin Rust Dev Environment locally.
+#
 # Sets up Docker and all the tools needed to X11 forward applications out of a
 # Docker Container.
-# 
+#
 # Finally, this script pulls an image from Docker Hub, ties it to a container
 # with the appropriate mounts and devices, and adds some helpful aliases.
 #
 # Tested on x64 Linux and Windows 10 (Build 1703)
-# 
-# WARNING: May not work on non-standard installations (i.e. Custom Program 
+#
+# WARNING: May not work on non-standard installations (i.e. Custom Program
 # Files Directory Location)
-############################################################################## 
+##############################################################################
 
 # All or nothing:
 set -e
@@ -80,7 +80,7 @@ usage: ./install-uav-rust-dev-env.sh [-i <image name>] [-p <project dir>] [-t <c
     -i <image name>     Image Name: Specific docker image to use for the container (default is uavaustin/rust-dev-env:latest)
     -p <project dir>    Shared Dir: Folder to mount into the Docker Container (default is ~/Documents/UAVA/)
     -t <container tag>  Custom Tag: Custom tag to use for the Docker Container (default is uava-dev)
-    -a <alias file>     Alias File: Add aliases to a specified file (default is ~/.bash_aliases)             
+    -a <alias file>     Alias File: Add aliases to a specified file (default is ~/.bash_aliases)
     -A                  No Aliases: Skip adding aliases
     -D                  Debug Mode: Internally runs set -x (prints out all commands run, line by line)
     -q                  Quiet Mode: Supresses all feedback from the script (but not from other executables)
@@ -173,6 +173,10 @@ function checkForDockerGroup
                 sudo dscl . append /Groups/docker GroupMembership $(whoami)
             else
                 sudo usermod -aG docker $(whoami)
+                if [ ${OS} -eq ${WSLIN} ]; then
+                    print "Now reopen Bash and re-run this script." $BOLD
+                    exit 1
+                fi
                 print "Now, run sudo login and then re-run this script." $BOLD
                 print "Or just log in again (reccomended)" $BOLD
                 exit 1
@@ -188,7 +192,7 @@ function checkForDockerGroup
         # This will not work on macOS and that is probably fine.
         print "Creating a docker group..." $BROWN
         sudo groupadd docker
-        
+
         ((runCount++))
         checkForDockerGroup $runCount
     fi
@@ -199,7 +203,7 @@ function windowsCMD
     # Invoke the devil:
     # Invoking cmd does some funky quote parsing, hence the extra quotes
     output=$(/mnt/c/Windows/System32/cmd.exe /C "$*")
-    
+
     # Clean up string because Windows and DOS were built for type writters
     # (yes, another carriage return issue)
     echo $output | tr -d '\r'
@@ -254,7 +258,7 @@ function windowsDependency_Xming
         # Now download the latest stable xming:
         # (I believe Bash On Windows ships with wget so this should be safe)
         wget -q --show-progress -O "${dPath}" \
-            "https://downloads.sourceforge.net/project/xming/Xming/6.9.0.31/Xming-6-9-0-31-setup.exe"
+            "https://osdn.net/frs/g_redir.php?m=netix&f=%2Fxming%2FXming%2F6.9.0.31%2FXming-6-9-0-31-setup.exe"
 
         print "In a few seconds, the Xming Installation should begin." $BOLD
         print "Click Yes on the User Account Control Prompt." $BOLD
@@ -327,7 +331,7 @@ function windows_checkForHypervisor
     #
     # Therefore:
     # (0b000000) -> 0  => HyperV Enabled
-    # (0b000001) -> 1  => Right OS, No H/W support, not enabled 
+    # (0b000001) -> 1  => Right OS, No H/W support, not enabled
     # (0b`````0) -> -  => (IMPOSSIBLE; all the `'s must be 0)
     # (0b000011) -> 3  => Not supported in H/W or S/W, not enabled
     # (0b111101) -> 61 => H/W support and S/W support, just not enabled
@@ -355,7 +359,7 @@ function windows_checkForHypervisor
     # Check HW features:
     hwFs=("VM Monitor Mode Extensions: Yes" "Virtualization Enabled In Firmware: Yes"
         "Second Level Address Translation: Yes" "Data Execution Prevention Available: Yes")
-    
+
     for ((i=0; i < ${#hwFs[@]}; i++)); do
         if echo $sysinfo | grep -q "${hwFs[$i]}"; then
             (( out += 2**($i+2) ))
@@ -401,7 +405,8 @@ function windows_InstallDockerForWindows
         $CMD /C "$dPathWin" install --quiet | more
 
         # Check if it really installed, just to be sure:
-        return $(windows_InstallDockerForWindows)
+        windows_InstallDockerForWindows
+        return $?
     fi
 }
 
@@ -489,6 +494,8 @@ function windows_InstallDockerToolbox
     fi
 }
 
+# TODO: This is currently broken and very low priority.
+# Need to actually start docker, I think.
 function windows_ConfigureForDockerToolbox
 {
     print "We're going to configure Docker Toolbox to work with Bash now." $BROWN
@@ -515,7 +522,7 @@ ${PROF_TITLE}
 export VBOX_MSI_INSTALL_PATH='/c/Program Files/Oracle/VirtualBox/'
 pushd '/c/Program Files/Docker Toolbox/' > /dev/null
 ./start.sh exit > /dev/null 2>&1
-# Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes. 
+# Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes.
 arr=\$(./docker-machine.exe env --shell bash | sed 's/C:/\/c/' | sed 's/\\\\/\//g' | sed 's:#.*$::g' | sed 's/"/\x27/g')
 readarray -t y <<<"\$arr"
 for ((i=0; i< \${#y[@]}; i++)); do eval "\${y[\$i]}"; done
@@ -529,7 +536,7 @@ EOF
     export VBOX_MSI_INSTALL_PATH='/c/Program Files/Oracle/VirtualBox/'
     pushd '/c/Program Files/Docker Toolbox/' > /dev/null
     ./start.sh exit
-    # Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes. 
+    # Get env variables from docker-machine, convert paths, ignore comments, and strip double quotes.
     arr=$(./docker-machine.exe env --shell bash | sed 's/C:/\/c/' | sed 's/\\/\//g' | sed 's:#.*$::g' | sed 's/"/\x27/g')
     readarray -t y <<<"$arr"
     for ((i=0; i< ${#y[@]}; i++)); do eval "${y[$i]}"; done
@@ -558,6 +565,7 @@ function windowsDependency_DockerServer
             print \
 "Hypervisor is enabled on your computer, which requires that you use Docker \
 instead of Docker Toolbox or use docker-machine with the HyperV driver. \
+(Or you're running Windows in a VM, which isn't supported by this script) \
 However, as of now this tool is only tested for Docker Toolbox installs. \
 To continue, either disable Hypervisor or manually install and configure \
 Docker. Once you do so, you can run this script again to proceed with \
@@ -595,7 +603,7 @@ this tool is only tested on Docker Toolbox installs. So, if you wish to \
 install and configure Docker for Windows manually, please run this script \
 again after doing so. If you choose to continue, you can install Docker Toolbox \
 or try the untested Docker For Windows installation process." $RED
-        
+
 
         print "What do you wish to install? (enter option #)" $BOLD
         select yn in "Toolbox" "Docker For Windows" "Nothing"; do
@@ -627,7 +635,7 @@ or try the untested Docker For Windows installation process." $RED
     {
         windows_InstallDockerToolbox && \
         windows_ConfigureForDockerToolbox
-    } || print "Failed to install Docker Toolbox." $RED && badEnv 1
+    } || print "Failed to set up Docker Toolbox." $RED && badEnv 1
 
     return $?
 }
@@ -651,7 +659,7 @@ function windowsDocumentsPath
 
     # Add our snippet to the path, windows style
     WIN_PROJ="${WIN_HOME}\\Documents\\UAVA"
-    
+
     # Convert to something we can use
     PRJCT_DIR=$(dos2wslPath ${WIN_PROJ[@]})
 
@@ -722,7 +730,7 @@ function macOS
         macOSDependencies && \
         checkForDockerGroup
     } || print "macOS Dependencies failed to install. Please try again." $RED && badEnv 1
-    
+
     DEPENDENCIES+=("brew socat xquartz")
 }
 
@@ -776,7 +784,7 @@ function linuxDependencies
     linuxDependency_Docker && \
     checkForDockerGroup && \
     return 0
-    } || print "Failed to install Docker." $RED && badEnv 1
+    } || print "Failed to configure Docker." $RED && badEnv 1
 }
 
 function linux
@@ -927,7 +935,7 @@ function emergencyExit
 {
     stty echo
     print "\nInstall incomplete; Are you sure you wish to exit? (enter option #)" $RED
-    
+
     select yn in "Yes" "No"; do
         case $yn in
             Yes )  break;;
@@ -962,5 +970,5 @@ trap emergencyExit SIGINT SIGTERM
 ##########################
 # AUTHOR:  Rahul Butani  #
 # DATE:    Sept 26, 2017 #
-# VERSION: 0.9.1         #
+# VERSION: 0.9.3         #
 ##########################
