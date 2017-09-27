@@ -10,7 +10,9 @@ Contains:
 * Misc. Sublime Text Rust Plugins
 * And other goodies
 
-On Windows, install WSL/Bash on Windows before running the install script. Requires Windows 1703 (Spring Creators Update) or newer. If you're really lazy, run [this](https://github.com/xezpeleta/bowinstaller/releases/download/v0.1.1/bowinstaller.exe) to install Bash on Windows for you.
+On Windows, install WSL/Bash on Windows before running the install script. Requires Windows 1703 (Spring Creators Update) or newer. Also requires the 16.04 version of Bash on Windows (if you're on an older version the script will prompt you to upgrade).
+
+If you're really lazy, run [this](https://github.com/xezpeleta/bowinstaller/releases/download/v0.1.1/bowinstaller.exe) to install Bash on Windows for you. (might not work)
 
 Note that Docker For Windows installations don't currently work right, so please select Docker Toolbox if the script prompts you.
 

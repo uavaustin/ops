@@ -672,6 +672,17 @@ function windows
 {
     print "Bash on Windows will work just fine!" $CYAN
 
+    print "Before we begin, let's make sure you're on the latest version" $BOLD
+    print "of Bash on Windows." $BOLD
+
+    if do-release-upgrade --check-dist-upgrade-only -q; then
+        print "There's a newer version of Bash on Windows available!" $BOLD
+        print "We're going to try to install it. Enter your password if prompted" $RED
+        do-release-upgrade || badEnv 1
+    else
+        print "You're already up to date!" $GREEN
+    fi
+
     windowsDependencies
 
     print "Making some windows specific changes..." $PURPLE
