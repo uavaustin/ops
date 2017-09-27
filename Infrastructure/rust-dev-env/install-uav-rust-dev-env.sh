@@ -636,7 +636,11 @@ or try the untested Docker For Windows installation process." $RED
     {
         windows_InstallDockerToolbox && \
         windows_ConfigureForDockerToolbox
-    } || print "Failed to set up Docker Toolbox." $RED && badEnv 1
+    } || 
+    {   
+        print "Failed to set up Docker Toolbox." $RED && \
+        badEnv 1
+    }
 
     return $?
 }
@@ -648,7 +652,11 @@ function windowsDependencies
         checkForDockerGroup && \
         windowsDependency_DockerServer && \
         windowsDependency_Xming
-    } || print "Failed to install dependencies." $RED && badEnv 1
+    } || 
+    {
+        print "Failed to install dependencies." $RED && \
+        badEnv 1
+    }
 
     return $?
 }
@@ -741,7 +749,11 @@ function macOS
     {
         macOSDependencies && \
         checkForDockerGroup
-    } || print "macOS Dependencies failed to install. Please try again." $RED && badEnv 1
+    } || 
+    {
+        print "macOS Dependencies failed to install. Please try again." $RED && \
+        badEnv 1
+    }
 
     DEPENDENCIES+=("brew socat xquartz")
 }
@@ -796,7 +808,11 @@ function linuxDependencies
     linuxDependency_Docker && \
     checkForDockerGroup && \
     return 0
-    } || print "Failed to configure Docker." $RED && badEnv 1
+    } || 
+    {
+        print "Failed to configure Docker." $RED && \
+        badEnv 1
+    }
 }
 
 function linux
