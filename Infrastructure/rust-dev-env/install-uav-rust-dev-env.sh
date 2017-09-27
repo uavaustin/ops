@@ -12,7 +12,7 @@
 # Tested on x64 Linux and Windows 10 (Build 1703)
 #
 # WARNING: May not work on non-standard installations (i.e. Custom Program
-# Files Directory Location)
+# Files Location)
 ##############################################################################
 
 # All or nothing:
@@ -543,6 +543,7 @@ EOF
     popd > /dev/null
 
     docker images
+    return $?
 }
 
 function windowsDependency_DockerServer
