@@ -944,7 +944,7 @@ ${PROF_TITLE}
 alias uava='cd "${PRJCT_DIR}"'
 alias uavai='docker exec -it ${CNTNR_NAME} bash -c "intellij-idea-community"'
 alias uavas='docker exec -it ${CNTNR_NAME} bash -c "subl"'
-alias uavad='docker exec -it ${CNTNR_NAME} bash -c "gnome-terminal"'
+#alias uavad='docker exec -it ${CNTNR_NAME} bash -c "gnome-terminal"'
 alias uavaD='docker exec -it ${CNTNR_NAME} /bin/zsh'
 EOF
 
@@ -991,7 +991,7 @@ print "    uavaE => Stop (End) Container" $BOLD
 print "    uavaD => Open tty shell" $BOLD
 print "    uavai => Start IntelliJ" $BOLD
 print "    uavas => Start Sublime Text" $BOLD
-print "    uavaD => Open gnome-terminal" $BOLD
+#print "    uavad => Open gnome-terminal" $BOLD
 }
 
 function emergencyExit
