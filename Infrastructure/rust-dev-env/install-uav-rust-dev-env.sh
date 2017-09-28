@@ -18,7 +18,7 @@
 # All or nothing:
 set -e
 
-VERSION="0.9.5"
+VERSION="0.9.6"
 
 DOCKER="docker"
 DEPENDENCIES=("cat grep expr whoami xargs which docker")
@@ -179,10 +179,11 @@ function checkForDockerGroup
                     print "Now reopen Bash and re-run this script." $BOLD
                     exit 1
                 fi
-                print "Now, run sudo login and then re-run this script." $BOLD
-                print "Or just log in again (reccomended)" $BOLD
-                exit 1
             fi
+
+            print "Now, run sudo login and then re-run this script." $BOLD
+            print "Or just log in again (reccomended)" $BOLD
+            exit 1
 
             # Now let's see if that actually worked:
             ((runCount++))
@@ -1031,6 +1032,6 @@ trap emergencyExit SIGINT SIGTERM
 
 ##########################
 # AUTHOR:  Rahul Butani  #
-# DATE:    Sept 26, 2017 #
-# VERSION: 0.9.5         #
+# DATE:    Sept 28, 2017 #
+# VERSION: 0.9.6         #
 ##########################
