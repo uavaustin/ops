@@ -11,10 +11,21 @@ windows setup will be more complicated:
     we need to intelligently set the DISPLAY variable for the container based on what the docker virtual interface is set to at install time (lil bit tricky, but they seem to start with 10. at least)
     we should probably look into making a start menu entry to open gnome-terminal (or xming + docker start + gnome-terminal) because that makes it v v easy for windows users (none of this hacky open bash, open another terminal or powershell business)
          ^ this is definitely a future/feature kind of thing though
+
 linux is and remains flawless
 
-and as for macOS, who the hell knows
-I suspect it's something similar to the xming -ac thing
-at least I hope
+and as for macOS, we just need to grab the host boot2docker VM's IP using docker-machine ip (and change the last digit to a 1 for the gateway) and set that to the DISPLAY variable at install time
+I suspect that may work for windows as well
+Also, we need to install socat and xquartz (these are straightforward enough that I don't have an issue installing these as part of the install script)
+and change the start alias for macOS to also start socat
+
+I think, our dependencies right now are as follows:
+macOS: brew & a good shell & the xcode thing & the docker toolbox (not worth trying to auto install this)
+      we'll install xquartz and socat if they're missing
+linux: docker & a good shell?
+      linux is pretty straight forward
+windows: docker (regular or kitematic - need to test kitematic/toolbox) & bash on windows & xming
+      not going to attempt to auto install anything on windows
 
 And all of this will be release 0.1.0
+the auto install stuff/convenient shortcuts can be a future release
