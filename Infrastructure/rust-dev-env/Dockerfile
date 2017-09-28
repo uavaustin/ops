@@ -122,7 +122,7 @@ RUN  sudo chmod +x subs && bash subs ${NEWUSER} ${RUST_VERSION}
 
 # Configure IntelliJ:
 RUN bash -c "mkdir -p /home/${NEWUSER}/.IdeaIC${INTELLIJ_MAJOR}/config/{options,plugins}" && \
-    wget 'https://plugins.jetbrains.com/plugin/download?updateId=38203' -O \
+    wget 'https://plugins.jetbrains.com/plugin/download?updateId=38876' -O \
         /home/${NEWUSER}/.IdeaIC${INTELLIJ_MAJOR}/config/plugins/rust.zip -q && \
     cd /home/${NEWUSER}/.IdeaIC${INTELLIJ_MAJOR}/config/plugins/ && \
     unzip -q rust.zip && \
