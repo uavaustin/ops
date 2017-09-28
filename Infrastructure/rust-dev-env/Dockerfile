@@ -22,6 +22,9 @@ ENV LANG C.UTF-8
 ENV RUST_VERSION=1.20.0
 ENV INTELLIJ_BUILD="${INTELLIJ_MAJOR}.${INTELLIJ_MINOR}"
 
+ENV USER="${NEWUSER}"
+ENV CNTR_VER="${VERSION}"
+
 LABEL   uava.version="${VERSION}" \
         uava.subteam="integration" \
         uava.rust-dev.rustc="${RUST_VERSION}" \
