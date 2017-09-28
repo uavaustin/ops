@@ -18,7 +18,7 @@
 # All or nothing:
 set -e
 
-VERSION="0.9.6"
+VERSION="0.9.7"
 
 DOCKER="docker"
 DEPENDENCIES=("cat grep expr whoami xargs which docker")
@@ -919,7 +919,7 @@ function dockerRun
         -v "${PRJCT_DIR}":/opt/Projects \
         -v /tmp/.X11-unix:/tmp/.X11-unix \
         -e DISPLAY=${DISPLAY} \
-        --security-opt seccomp=unconfined
+        --security-opt seccomp=unconfined \
         "${IMAGE_NAME}" \
         cat && \
     cd -
@@ -1034,5 +1034,5 @@ trap emergencyExit SIGINT SIGTERM
 ##########################
 # AUTHOR:  Rahul Butani  #
 # DATE:    Sept 28, 2017 #
-# VERSION: 0.9.6         #
+# VERSION: 0.9.7         #
 ##########################
