@@ -18,6 +18,8 @@
 # All or nothing:
 set -e
 
+VERSION="0.9.5"
+
 DOCKER="docker"
 DEPENDENCIES=("cat grep expr whoami xargs which docker")
 
@@ -241,9 +243,9 @@ function windowsDependency_Xming
 
     xmingWinPath=$(dos2wslPath "$(windowsCMD "echo %programfiles(x86)%")\\Xming\\Xming.exe")
 
+    # Install:
     if [ -e "$xmingWinPath" ]; then
         print "Xming is installed!" $GREEN
-        return 0
     else
         # Install Xming:
         print "We couldn't find Xming on your computer, so we're"
@@ -265,12 +267,29 @@ function windowsDependency_Xming
 
         sleep 3
 
-        $CMD /C "$dPathWin" /SILENT  | more
+        $CMD /C "$dPathWin" /TYPE=full /SILENT  | more
 
         # Check if it really installed, just to be sure:
         windowsDependency_Xming
         return $?
     fi
+
+    # Now configure:
+    print "Making sure Xming is configured correctly:" $PURPLE
+
+    xmingInstallDir=$(dos2wslPath "$(windowsCMD "echo %programfiles(x86)%")\\Xming")
+    dockerMachineIP=$(docker-machine.exe ip)
+
+    if ! grep -q "${dockerMachineIP}" "${xmingInstallDir}/X0.hosts"; then
+        print "Adding ${dockerMachineIP} to allowed X Hosts." $CYAN
+        echo "${dockerMachineIP}" >> "${xmingInstallDir}/X0.hosts"
+    fi
+
+    print "Launching Xming now!" $GREEN
+    print "If you get a Windows Firewall popup, please allow Xming through." $BOLD
+
+    sleep 1
+    bash -c "cd \"${xmingInstallDir}\" && ./Xming.exe :0 -clipboard -multiwindow >/dev/null 2>&1" &
 }
 
 function windowsDependency_DockerClient
@@ -425,7 +444,7 @@ function windows_ConfigureForDockerForWindows
     done
 
     # Add necessary things to .bashrc
-    PROF_TITLE="# Additions for Docker For Windows #"
+    PROF_TITLE="# Additions for Docker For Windows v${VERSION}#"
 
     if grep -q "${PROF_TITLE}" "$HOME/.bashrc"; then
         print ".bashrc changes already present." $PURPLE
@@ -442,6 +461,9 @@ for ((i=0; i< \${#y[@]}; i++)); do eval "\${y[\$i]}"; done
 popd > /dev/null
 # Change /mnt/c/ to /c/ in current working directory path
 cd \$(pwd | sed 's/\/mnt\/c\//\/c\//')
+PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
+PATH="\$PATH:/c/Program Files/Docker/Docker/resources/bin/"
+export PATH=$PATH
 EOF
     fi
 
@@ -453,7 +475,12 @@ EOF
     for ((i=0; i< ${#y[@]}; i++)); do eval "${y[$i]}"; done
     popd > /dev/null
 
-    docker images
+    PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
+    PATH="\$PATH:/c/Program Files/Docker/Docker/resources/bin/"
+    export PATH=$PATH
+
+    docker images > /dev/null 2>&1
+    return $?
 }
 
 function windows_InstallDockerToolbox
@@ -510,7 +537,7 @@ function windows_ConfigureForDockerToolbox
     done
 
     # Add necessary things to .bashrc
-    PROF_TITLE="# Additions for Docker Toolbox #"
+    PROF_TITLE="# Additions for Docker Toolbox v${VERSION}#"
 
     if grep -q "${PROF_TITLE}" "$HOME/.bashrc"; then
         print ".bashrc changes already present." $PURPLE
@@ -529,6 +556,9 @@ for ((i=0; i< \${#y[@]}; i++)); do eval "\${y[\$i]}"; done
 popd > /dev/null
 # Change /mnt/c/ to /c/ in current working directory path
 cd \$(pwd | sed 's/\/mnt\/c\//\/c\//')
+PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
+PATH="\$PATH:/c/Program\ Files/Docker\ Toolbox/"
+export PATH=$PATH
 EOF
     fi
 
@@ -541,8 +571,11 @@ EOF
     readarray -t y <<<"$arr"
     for ((i=0; i< ${#y[@]}; i++)); do eval "${y[$i]}"; done
     popd > /dev/null
+    PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
+    PATH="\$PATH:/c/Program\ Files/Docker\ Toolbox/"
+    export PATH=$PATH
 
-    docker images
+    docker images > /dev/null 2>&1
     return $?
 }
 
@@ -674,7 +707,8 @@ function windowsDocumentsPath
 
     # And print
     print "Using ${PRJCT_DIR} as default Windows Path" $BOLD
-    print "(can be accessed at ${WIN_PROJ} in Windows)" $BOLD
+    print "(can be accessed at ${WIN_HOME}\\Documents\\" $BOLD -n 
+    print "UAVA in Windows)" $BOLD
 }
 
 function windows
@@ -704,7 +738,7 @@ function windows
     print "Using ${DISPLAY} as \$DISPLAY..." $PURPLE
 
     # Continue with .bashrc additions:
-    PROF_TITLE="# Added automagically for Docker #"
+    PROF_TITLE="# Added automagically for Docker (v${VERSION})#"
 
     if grep -q "${PROF_TITLE}" "$HOME/.bashrc"; then
         print "Changes already present." $PURPLE
@@ -714,8 +748,6 @@ function windows
     cat << EOF >> "$HOME/.bashrc"
 
 ${PROF_TITLE}
-PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
-PATH="\$PATH:/c/Program\ Files/Docker\ Toolbox/"
 export DISPLAY=:0
 alias docker-machine="docker-machine.exe"
 EOF
@@ -900,13 +932,14 @@ function installAliases
     # ALIAS_FILE_LOC=${ALIAS_FILE-"~/.bash_aliases"}
     print "Using ${ALIAS_FILE:="${HOME}/.bash_aliases"} as alias file."
 
-    if grep -q "# ${CNTNR_NAME} Aliases v0.1.0 #" ${ALIAS_FILE}; then
+    PROF_TITLE="# ${CNTNR_NAME} Aliases v${VERSION} #"
+    if grep -q "${PROF_TITLE}" ${ALIAS_FILE}; then
         print "Aliases already installed." $PURPLE
         return $?
     fi
 
     cat << EOF >> "${ALIAS_FILE}"
-# ${CNTNR_NAME} Aliases v0.1.0 #
+${PROF_TITLE}
 alias uava='cd "${PRJCT_DIR}"'
 alias uavai='docker exec -it ${CNTNR_NAME} bash -c "intellij-idea-community"'
 alias uavas='docker exec -it ${CNTNR_NAME} bash -c "subl"'
@@ -935,7 +968,8 @@ EOF
          cat << EOF >> "${ALIAS_FILE}"
 function uavaS
 {
-    \$("${CMD}" /C "$(windowsCMD "echo %programfiles(x86)%")\\Xming\\Xming.exe" :0 -clipboard -multiwindow -ac >nul 2>&1) &
+    xmingInstallDir="$(dos2wslPath "$(windowsCMD "echo %programfiles(x86)%")\\Xming")"
+    bash -c "cd \"\${xmingInstallDir}\" && ./Xming.exe :0 -clipboard -multiwindow >/dev/null 2>&1" &
     docker start ${CNTNR_NAME}
 }
 alias uavaE='docker stop ${CNTNR_NAME} -t 1'
@@ -993,10 +1027,10 @@ trap emergencyExit SIGINT SIGTERM
 
 #Notes:
 # It's actually possible to automate the WSL installation, but I don't want to do this.
-# (https://github.com/xezpeleta/bowinstaller)
+# (https://github.com/xezpeleta/bowinstaller) (nvm, this is broken)
 
 ##########################
 # AUTHOR:  Rahul Butani  #
 # DATE:    Sept 26, 2017 #
-# VERSION: 0.9.3         #
+# VERSION: 0.9.5         #
 ##########################
