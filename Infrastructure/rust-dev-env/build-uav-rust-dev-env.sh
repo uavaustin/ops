@@ -10,7 +10,7 @@
 set -e
 
 # Configuration Variables #
-VERSION="0.0.0"
+VERSION="0.9.6"
 USER="padawan"
 USERF="Padawan"
 TAG="uavaustin/rust-dev-env"
