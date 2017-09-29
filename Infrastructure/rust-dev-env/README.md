@@ -22,6 +22,6 @@ Other Linux Distros are supported as well ([check the compatability pages under 
 
 On macOS, you'll have to install Docker yourself. This script has been tested with Docker Toolbox/Kitematic but it _should_ work with Docker for Mac too. [Docker for Mac](https://download.docker.com/mac/stable/Docker.dmg) will perform better and if you're running macOS Yosemite or newer (10.10+) try installing that first. If you're running an older version of macOS install (Docker Toolbox/Kitematic)[https://download.docker.com/mac/stable/DockerToolbox.pkg].
 
-`curl https://raw.githubusercontent.com/uavaustin/ops/0.1.0/Infrastructure/rust-dev-env/install-uav-rust-dev-env.sh -o install-env.sh && chmod +x install-env.sh && ./install-env.sh`
+`curl https://raw.githubusercontent.com/uavaustin/ops/0.9.x/Infrastructure/rust-dev-env/install-uav-rust-dev-env.sh -o install-env.sh && chmod +x install-env.sh && ./install-env.sh`
 
 N.B: curl is no longer installed by deafault on Ubuntu 17.10. Either install curl or use wget.

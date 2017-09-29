@@ -464,7 +464,6 @@ popd > /dev/null
 cd \$(pwd | sed 's/\/mnt\/c\//\/c\//')
 PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
 PATH="\$PATH:/c/Program Files/Docker/Docker/resources/bin/"
-export PATH=$PATH
 EOF
     fi
 
@@ -478,7 +477,6 @@ EOF
 
     PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
     PATH="\$PATH:/c/Program Files/Docker/Docker/resources/bin/"
-    export PATH=$PATH
 
     docker images > /dev/null 2>&1
     return $?
@@ -559,7 +557,6 @@ popd > /dev/null
 cd \$(pwd | sed 's/\/mnt\/c\//\/c\//')
 PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
 PATH="\$PATH:/c/Program\ Files/Docker\ Toolbox/"
-export PATH=$PATH
 EOF
     fi
 
@@ -574,7 +571,6 @@ EOF
     popd > /dev/null
     PATH="\$HOME/bin:\$HOME/.local/bin:\$PATH"
     PATH="\$PATH:/c/Program\ Files/Docker\ Toolbox/"
-    export PATH=$PATH
 
     docker images > /dev/null 2>&1
     return $?
@@ -739,7 +735,7 @@ function windows
     print "Using ${DISPLAY} as \$DISPLAY..." $PURPLE
 
     # Continue with .bashrc additions:
-    PROF_TITLE="# Added automagically for Docker (v${VERSION})#"
+    PROF_TITLE="# Added automagically for Docker (v${VERSION}) #"
 
     if grep -q "${PROF_TITLE}" "$HOME/.bashrc"; then
         print "Changes already present." $PURPLE
