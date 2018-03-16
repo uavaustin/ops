@@ -820,7 +820,7 @@ function linuxDependency_Docker
             software-properties-common && \
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
         sudo add-apt-repository -y \
-           "deb [arch=amd64] https://download.docker.com/linux/$(lsb_release -is)\
+           "deb [arch=amd64] https://download.docker.com/linux/$(lsb_release -is) \
            $(lsb_release -cs) \
            stable" && \
         sudo apt-get update -qq && \
@@ -833,10 +833,10 @@ function linuxDependency_Docker
 function linuxDependencies
 {
     {
-    linuxDependency_Generic && \
-    linuxDependency_Docker && \
-    checkForDockerGroup && \
-    return 0
+        linuxDependency_Generic && \
+        linuxDependency_Docker && \
+        checkForDockerGroup && \
+        return 0
     } || 
     {
         print "Failed to configure Docker." $RED && \
@@ -936,12 +936,16 @@ function installAliases
         return $?
     fi
 
+    # Script fix until 17.06 is widespread
+    # https://github.com/moby/moby/issues/8755
+
     cat << EOF >> "${ALIAS_FILE}"
 ${PROF_TITLE}
 alias uava='cd "${PRJCT_DIR}"'
 alias uavai='docker exec -it ${CNTNR_NAME} bash -c "intellij-idea-community"'
 alias uavas='docker exec -it ${CNTNR_NAME} bash -c "subl"'
 #alias uavad='docker exec -it ${CNTNR_NAME} bash -c "gnome-terminal"'
+#alias uavaD='docker exec -it ${CNTNR_NAME} script -q -c "/bin/zsh" /dev/null'
 alias uavaD='docker exec -it ${CNTNR_NAME} /bin/zsh'
 EOF
 
