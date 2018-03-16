@@ -46,7 +46,8 @@ RUN apt-get update -qq && \
         fortune sl cowsay figlet \
         x11-apps man \
         thefuck python-pkg-resources \
-        telnet ssh && \
+        telnet ssh w3m tmux \
+        firefox && \
     DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
         apt-get upgrade -qq -y && \
     # Sublime:
@@ -88,7 +89,11 @@ WORKDIR /home/"${NEWUSER}"/
 # Install Rust:
 RUN curl -sO https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init && \
     chmod +x rustup-init && \
-    ./rustup-init -y --default-toolchain $RUST_VERSION
+    ./rustup-init -y --default-toolchain $RUST_VERSION && \
+    sudo wget https://raw.githubusercontent.com/rust-lang/nano-config/master/rust.nanorc -O /usr/share/nano/rust.nanorc
+
+# GDB Dashboard:
+RUN wget -P ~ git.io/.gdbinit
 
 # Install oh-my-zsh
 RUN wget https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh -O install.sh && \
@@ -101,6 +106,7 @@ RUN wget https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/i
 # Add rustup completions:
 RUN mkdir -p ~/.oh-my-zsh/plugins/rustup && \
     cat ~/.cargo/env >> ~/.zshrc && \
+    echo 'export PATH=/usr/games:/usr/local/games:$PATH' >> ~/.zshrc && \
     PATH="$HOME/.cargo/bin:$PATH" rustup completions zsh > ~/.oh-my-zsh/plugins/rustup/_rustup && \
     sed -i '/plugins=(git)/a plugins+=(rust rustup command-not-found chucknorris dirhistory docker lol)' ~/.zshrc
 
@@ -149,8 +155,8 @@ RUN echo "# UAVA Aliases #" >> "/home/${NEWUSER}/.aliases" && \
     echo "                      /\\ _ /\\ " >> "/home/${NEWUSER}/.aliases" && \
     echo "                   []/       \\[]" >> "/home/${NEWUSER}/.aliases" && \
     echo "" >> "/home/${NEWUSER}/.aliases" && \
-    echo "    UAV Austin Development Environment v${CNTR_VER}" >> "/home/${NEWUSER}/.aliases" && \
-    echo "----------------------------------------------------" >> "/home/${NEWUSER}/.aliases" && \
+    echo "     UAV Austin Development Environment v${CNTR_VER}" >> "/home/${NEWUSER}/.aliases" && \
+    echo "---------------------------------------------------" >> "/home/${NEWUSER}/.aliases" && \
     echo " uava     :: Jumps to Project Directory" >> "/home/${NEWUSER}/.aliases" && \
     echo " uavai    :: Starts IntelliJ" >> "/home/${NEWUSER}/.aliases" && \
     echo " uavas    :: Starts Sublime Text 3 (subl works too)" >> "/home/${NEWUSER}/.aliases" && \
