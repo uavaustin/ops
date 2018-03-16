@@ -126,6 +126,7 @@ function dockerBuild
         --build-arg NEWUSER=${USER} \
         --build-arg NEWUSERF=${USERF} \
         --build-arg VERSION=${VERSION} \
+        --rm=true \
         . && \
     print "Build completed successfully in: ^" $CYAN
 
