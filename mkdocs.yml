@@ -1,0 +1,30 @@
+site_name: UAV Austin Ops
+site_url: https://docs.uavaustin.org/Ops/
+site_description: Documentation for Operations at UAV Austin.
+site_author: UAV Austin
+
+repo_url: https://github.com/uavaustin/Ops
+edit_uri: blob/master/ #view, not edit
+
+pages:
+- Home: README.md
+- User Guide:
+    - Writing Your Docs: user-guide/writing-your-docs.md
+    - Styling Your Docs: user-guide/styling-your-docs.md
+    - Configuration: user-guide/configuration.md
+    - Deploying Your Docs: user-guide/deploying-your-docs.md
+    - Custom Themes: user-guide/custom-themes.md
+- About:
+    - Release Notes: about/release-notes.md
+    - Contributing: about/contributing.md
+    - License: about/license.md
+
+extra_css:
+    - css/extra.css
+
+markdown_extensions:
+    - toc:
+        permalink: 
+    - admonition:
+
+google_analytics: ['UA-105339892-1', 'docs.uavaustin.org/Ops/']
